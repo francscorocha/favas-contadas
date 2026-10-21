@@ -1,13 +1,13 @@
 {
- "name": "Despensa",
- "short_name": "Despensa",
+ "name": "Favas Contadas",
+ "short_name": "Favas",
  "description": "O que tens em casa, o plano de refeições e a lista de compras.",
  "lang": "pt",
  "start_url": "./",
  "scope": "./",
  "display": "standalone",
- "background_color": "#F2F3EE",
- "theme_color": "#7A2550",
+ "background_color": "#F9F5F6",
+ "theme_color": "#3F6D12",
  "icons": [
   {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
   {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png"},

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#F8F6F4" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#151213" media="(prefers-color-scheme: dark)">
-<title>Despensa</title>
+<meta name="theme-color" content="#F9F5F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141213" media="(prefers-color-scheme: dark)">
+<title>Favas Contadas</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,26 +15,26 @@
 <style>
 /* Layout: app Android (Material 3) — barra de topo, conteúdo numa coluna com listas agrupadas, barra de navegação em baixo, folhas que sobem do fundo */
 :root{
-  --bg:#F8F6F4; --c1:#FFFFFF; --c2:#EFEAE8; --ink:#1E1B1C; --muted:#5E5759; --line:#E6E0DE;
-  --accent:#7A2550; --on-accent:#FFFFFF; --accent-soft:#F6DCE7; --on-accent-soft:#3E0A24;
-  --ok:#2E7A4B; --ok-soft:#D8EEDD; --warn:#8A560A; --warn-soft:#F8E6C8; --bad:#B3261E; --on-bad:#FFFFFF;
+  --bg:#F9F5F6; --c1:#FFFFFF; --c2:#F0E9EC; --ink:#1E1B1C; --muted:#5E5759; --line:#E7DFE2;
+  --accent:#3F6D12; --on-accent:#FFFFFF; --accent-soft:#F5DCE8; --on-accent-soft:#4D1D36;
+  --ok:#3F6D12; --ok-soft:#E2F0D0; --warn:#8A560A; --warn-soft:#F8E6C8; --bad:#B3261E; --on-bad:#FFFFFF;
   --mc:#B67812; --mf:#2F7488;
-  --press:rgb(30 27 28 / .09); --inverse:#332F30; --on-inverse:#F6EFF0; --inverse-accent:#F4A9C9;
+  --press:rgb(30 27 28 / .09); --inverse:#332F30; --on-inverse:#F6EFF0; --inverse-accent:#AFD67E;
   --display:"Bricolage Grotesque", system-ui, sans-serif;
   --body:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#151213; --c1:#211D1E; --c2:#2C2728; --ink:#ECE0E2; --muted:#B9ADB0; --line:#3A3335;
-  --accent:#F0A3C5; --on-accent:#4A1030; --accent-soft:#5E1B3E; --on-accent-soft:#FFD8E8;
-  --ok:#7CCB97; --ok-soft:#1F3A28; --warn:#E8B45C; --warn-soft:#3F2F12; --bad:#F2B8B5; --on-bad:#601410;
+  --bg:#141213; --c1:#211D1F; --c2:#2C2729; --ink:#ECE0E4; --muted:#B9ADB2; --line:#3A3337;
+  --accent:#AFD67E; --on-accent:#1E3600; --accent-soft:#4E2B3E; --on-accent-soft:#FBD9E9;
+  --ok:#AFD67E; --ok-soft:#263A18; --warn:#E8B45C; --warn-soft:#3F2F12; --bad:#F2B8B5; --on-bad:#601410;
   --mc:#E4B456; --mf:#79BDD0;
-  --press:rgb(236 224 226 / .1); --inverse:#ECE0E2; --on-inverse:#332F30; --inverse-accent:#7A2550; color-scheme:dark}}
+  --press:rgb(236 224 226 / .1); --inverse:#ECE0E4; --on-inverse:#332F30; --inverse-accent:#3F6D12; color-scheme:dark}}
 :root[data-theme="dark"]{
-  --bg:#151213; --c1:#211D1E; --c2:#2C2728; --ink:#ECE0E2; --muted:#B9ADB0; --line:#3A3335;
-  --accent:#F0A3C5; --on-accent:#4A1030; --accent-soft:#5E1B3E; --on-accent-soft:#FFD8E8;
-  --ok:#7CCB97; --ok-soft:#1F3A28; --warn:#E8B45C; --warn-soft:#3F2F12; --bad:#F2B8B5; --on-bad:#601410;
+  --bg:#141213; --c1:#211D1F; --c2:#2C2729; --ink:#ECE0E4; --muted:#B9ADB2; --line:#3A3337;
+  --accent:#AFD67E; --on-accent:#1E3600; --accent-soft:#4E2B3E; --on-accent-soft:#FBD9E9;
+  --ok:#AFD67E; --ok-soft:#263A18; --warn:#E8B45C; --warn-soft:#3F2F12; --bad:#F2B8B5; --on-bad:#601410;
   --mc:#E4B456; --mf:#79BDD0;
-  --press:rgb(236 224 226 / .1); --inverse:#ECE0E2; --on-inverse:#332F30; --inverse-accent:#7A2550; color-scheme:dark}
+  --press:rgb(236 224 226 / .1); --inverse:#ECE0E4; --on-inverse:#332F30; --inverse-accent:#3F6D12; color-scheme:dark}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;color-scheme:light}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
@@ -216,8 +216,8 @@ const DEFAULT={v:1,ts:0,pantry:{},custom:{},goals:{kcal:2400,p:140,c:300,f:70,la
 let S=structuredClone(DEFAULT);
 const ui={tab:'plano',day:0,swap:null,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',open:null,sheet:null};
 
-function lsGet(){try{return JSON.parse(localStorage.getItem('despensa')||'null')}catch(e){return null}}
-function lsSet(){try{localStorage.setItem('despensa',JSON.stringify(S));return true}catch(e){return false}}
+function lsGet(){try{return JSON.parse(localStorage.getItem('favas-contadas')||'null')}catch(e){return null}}
+function lsSet(){try{localStorage.setItem('favas-contadas',JSON.stringify(S));return true}catch(e){return false}}
 function merge(x){return Object.assign(structuredClone(DEFAULT),x||{},{goals:Object.assign({},DEFAULT.goals,(x||{}).goals),shop:Object.assign({manual:[]},(x||{}).shop)})}
 function setSync(t){document.getElementById('sync').textContent=t}
 
@@ -535,7 +535,7 @@ document.addEventListener('click',e=>{
     case 'rmcustom':{const k=b.dataset.k;undoable(itemName(k)+' apagado',()=>{delete S.custom[k];delete S.pantry[k]});break}
     case 'addshop':{const inp=document.getElementById('sq');const n=inp.value.trim();if(!n)return;S.shop.manual.push({n});save();break}
     case 'copyshop':copyShop();return;
-    case 'exportar':{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='despensa-'+todayISO()+'.json';document.body.appendChild(a);a.click();a.remove();toast('Cópia guardada nas transferências');return}
+    case 'exportar':{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));a.download='favas-contadas-'+todayISO()+'.json';document.body.appendChild(a);a.click();a.remove();toast('Cópia guardada nas transferências');return}
     case 'rf':ui.rf=v;break;
     case 'toplan':{const dd=+document.getElementById('pd').value,ii=+document.getElementById('ps').value;const r=R[v];S.plan.days[dd].meals[ii]={slot:activeSlots()[ii][0],r:v,m:fitMult(r,S.goals.kcal*activeSlots()[ii][1]),done:false};save();ui.day=dd;toast(`Posto no plano: ${dayLabel(dd)}, ${SLOTS[activeSlots()[ii][0]].toLowerCase()}`);closeSheet();return}
     case 'days':S.goals.days=+v;save();break;
@@ -550,7 +550,7 @@ document.addEventListener('change',e=>{
   if(t.dataset.act==='bought'){const k=t.dataset.k;undoable(itemName(k)+' → Tenho',()=>{S.pantry[k]='t'});setTimeout(render,250)}
   if(t.dataset.act==='boughtm'){const i=+t.dataset.i;undoable(S.shop.manual[i].n+' riscado',()=>S.shop.manual.splice(i,1));setTimeout(render,250)}
   if(t.id==='importar'&&t.files&&t.files[0]){t.files[0].text().then(txt=>{const o=JSON.parse(txt);if(!o||typeof o.pantry!=='object')throw 0;
-    undoable('Cópia importada',()=>{S=merge(o);ensurePlan()});render()}).catch(()=>toast('Esse ficheiro não é uma cópia da Despensa'));t.value=''}
+    undoable('Cópia importada',()=>{S=merge(o);ensurePlan()});render()}).catch(()=>toast('Esse ficheiro não é uma cópia do Favas Contadas'));t.value=''}
   if(t.dataset.goal){const n=Math.max(1,Math.round(+t.value||0));S.goals[t.dataset.goal]=n;save();render()}
 });
 document.addEventListener('input',e=>{
