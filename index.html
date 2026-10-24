@@ -232,12 +232,6 @@ function save(){S.ts=Date.now();setSync(lsSet()?'':'não deu para guardar')}
 // ---------- Cálculos
 const st=k=>S.pantry[k]||'a';
 const haveW=k=>({t:1,p:.7,a:0})[st(k)];
-// alternativas: se a receita pede uma e tens a outra em casa, conta como tendo
-const ALTS=[['leite_soja','leite_amendoa'],['iog_soja','iog_proteico','iog_coco'],['tofu','tofu_fumado'],['pb','manteiga_amendoa'],['girassol','abobora_sem','canhamo'],['cajus','amendoas'],['grao','feijao'],['lentilhas','lentilhas_vermelhas'],['limao','lima'],['maple','acucar'],['azeite','oleo_coco'],['espinafres','kale'],['bagas','cerejas'],['arroz','arroz_integral'],['pao','baguete']];
-const ALTG={};for(const g of ALTS)for(const k of g)if(F[k])ALTG[k]=g.filter(x=>F[x]);
-const best=k=>(ALTG[k]||[k]).reduce((b,x)=>haveW(x)>haveW(b)?x:b,k);
-const est=k=>st(best(k));
-const haveA=k=>haveW(best(k));
 // época: fruta e legumes fora de época só entram se já os tiveres em casa
 const MES=new Date().getMonth()+1;
 const inSeason=k=>{const e=F[k]&&F[k].ep;return !e||(e[0]<=e[1]?MES>=e[0]&&MES<=e[1]:MES>=e[0]||MES<=e[1])};
@@ -255,11 +249,11 @@ const mealName=m=>m.parts?m.parts.map(partName).join(' + '):R[m.r].n;
 const mealKey=m=>m.snack?'s:'+m.snack:m.parts?'c:'+(m.parts[0].t==='f'?m.parts[0].k:m.parts[0].id):m.r;
 const validMeal=m=>m&&(m.parts?m.parts.every(p=>p.t==='f'?F[p.k]:R[p.id]):R[m.r]);
 const mainKeys=ings=>{const s=new Set();for(const {k,g} of ings)if(g>=3)s.add(k);return [...s]};
-function ingCoverage(ings){const ks=mainKeys(ings);return ks.length?ks.reduce((s,k)=>s+haveA(k),0)/ks.length:1}
-const ingCount=ings=>{const ks=mainKeys(ings);return [ks.filter(k=>est(k)!=='a').length,ks.length]};
+function ingCoverage(ings){const ks=mainKeys(ings);return ks.length?ks.reduce((s,k)=>s+haveW(k),0)/ks.length:1}
+const ingCount=ings=>{const ks=mainKeys(ings);return [ks.filter(k=>st(k)!=='a').length,ks.length]};
 const recIngs=r=>r.ing.map(([k,g])=>({k,g:g/r.sv}));
 const coverage=r=>ingCoverage(recIngs(r));
-const mealMiss=m=>m.sobra?[]:mainKeys(mealIngs(m)).filter(k=>est(k)==='a');
+const mealMiss=m=>m.sobra?[]:mainKeys(mealIngs(m)).filter(k=>st(k)==='a');
 function layersOf(ings){
   const L={};for(const [g] of LAYER1)L[g]=0;L.ferm=0;L.omega=0;L.vc=false;L.ac=false;
   for(const {k,g} of ings){const x=F[k];if(!x)continue;
@@ -304,7 +298,7 @@ function buildCombo(P,B,share,accL,avoid=new Set(),rnd=()=>0){
   for(let n=0;n<2;n++){
     let best=null,bs=-1;
     for(const V of COMP.legume){if(vegs.some(v=>v.k===V.k)||!available(V.k))continue;
-      const L=layersOf(partIngs(unitPart(V)));let s=.8*haveA(V.k)+.5*rnd()-(avoid.has(V.k)?.7:0);
+      const L=layersOf(partIngs(unitPart(V)));let s=.8*haveW(V.k)+.5*rnd()-(avoid.has(V.k)?.7:0);
       for(const [g,,t] of LAYER1)s+=Math.min(L[g],Math.max(0,t-taken[g]))/t;
       if(s>bs){bs=s;best=V}}
     const v=unitPart(best);vegs.push(v);const L=layersOf(partIngs(v));for(const g in L)if(typeof L[g]==='number')taken[g]+=L[g];
@@ -337,7 +331,7 @@ function pickFor(d,slotIdx,excludeKey){
     out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),-1.2)});
   }
   // produtos embalados (barras, bebida de chocolate) contam menos, para não aparecerem todos os dias
-  if(POOL[slot]==='la')for(const [id,ps,proc] of ANCHORS.filter(([,ps])=>!ps.some(([k])=>st(k)==='a'&&best(k)!==k)))for(const fk of SNACK_FRUIT.filter(available))for(const n of proc?[1]:[1,1.5]){
+  if(POOL[slot]==='la')for(const [id,ps,proc] of ANCHORS)for(const fk of SNACK_FRUIT.filter(available))for(const n of proc?[1]:[1,1.5]){
     const key='s:'+id;if(key===excludeKey)continue;
     const meal={parts:[...ps.map(([k,g])=>({t:'f',k,g:g*n})),{t:'f',k:fk,g:unitG(fk)}],m:1,snack:id};
     const ings=mealIngs(meal);
@@ -400,13 +394,13 @@ function suggestions(d){
   const ings=dayIngs(d),M=macrosOf(ings),L=layersOf(ings),out=[],G=S.goals;
   const dp=G.p-M.p;
   if(dp>12){
-    const opts=PROT.map(([k,sv,cap])=>({k,g:Math.min(cap,Math.max(sv/2,Math.round(dp/(F[k].p/100)/5)*5)),w:haveA(k)})).sort((a,b)=>b.w-a.w||F[b.k].p/F[b.k].k-F[a.k].p/F[a.k].k);
+    const opts=PROT.map(([k,sv,cap])=>({k,g:Math.min(cap,Math.max(sv/2,Math.round(dp/(F[k].p/100)/5)*5)),w:haveW(k)})).sort((a,b)=>b.w-a.w||F[b.k].p/F[b.k].k-F[a.k].p/F[a.k].k);
     const o=opts[0];out.push({k:o.k,g:o.g,why:`faltam ${Math.round(dp)} g de proteína`});
   }
   for(const [g,label,t] of [...LAYER1,...LAYER2]){
     const miss=t-L[g];if(miss<.5)continue;
     const cands=Object.entries(F).filter(([k,x])=>available(k)&&(g==='omega'?x.o:g==='ferm'?x.fe:x.g1===g))
-      .map(([k,x])=>({k,w:haveA(k),sv:g==='omega'?x.o:g==='ferm'?x.fe:x.s1})).sort((a,b)=>b.w-a.w);
+      .map(([k,x])=>({k,w:haveW(k),sv:g==='omega'?x.o:g==='ferm'?x.fe:x.s1})).sort((a,b)=>b.w-a.w);
     const c=cands[0];if(!c)continue;
     out.push({k:c.k,g:Math.round(c.sv*Math.max(1,Math.round(miss))),why:`${label}: ${fmtN(L[g])} de ${t}`});
   }
@@ -435,8 +429,8 @@ function sourceDone(m){return m.sobra&&S.plan.days[m.from[0]]?.meals[m.from[1]]?
 function shoppingList(){
   const need={};
   if(S.plan)S.plan.days.forEach(day=>{
-    day.meals.forEach(m=>{if(!m||m.done||sourceDone(m))return;for(const {k,g} of mealIngs(m)){if(est(k)==='t')continue;(need[k]||(need[k]={g:0,why:new Set()})).g+=g;need[k].why.add(m.parts?partName(m.parts[0])+' + …':R[m.r].n)}});
-    day.extras.forEach(e=>{if(est(e.k)==='t')return;(need[e.k]||(need[e.k]={g:0,why:new Set()})).g+=e.g;need[e.k].why.add('extra')});
+    day.meals.forEach(m=>{if(!m||m.done||sourceDone(m))return;for(const {k,g} of mealIngs(m)){if(st(k)==='t')continue;(need[k]||(need[k]={g:0,why:new Set()})).g+=g;need[k].why.add(m.parts?partName(m.parts[0])+' + …':R[m.r].n)}});
+    day.extras.forEach(e=>{if(st(e.k)==='t')return;(need[e.k]||(need[e.k]={g:0,why:new Set()})).g+=e.g;need[e.k].why.add('extra')});
   });
   const plan=[],low=[];
   for(const [k,v] of Object.entries(need)){(st(k)==='p'?low:plan).push({k,g:v.g,why:[...v.why]})}
@@ -594,7 +588,6 @@ const pills=M=>`<div class="pills">${[[M.kcal,'kcal'],[M.p,'g prot.'],[M.c,'g hi
 function sMeal({d,i}){
   const m=S.plan.days[d].meals[i],ings=mealIngs(m),M=macrosOf(ings),L=layersOf(ings);
   const miss=mealMiss(m).map(k=>F[k].n);
-  const trocas=m.sobra?[]:mainKeys(ings).filter(k=>best(k)!==k&&st(k)!=='t');
   const tips=[];
   if(L.leg>=.5&&!L.vc)tips.push('Junta vitamina C (limão, pimento cru, laranja) para absorver melhor o ferro.');
   if(L.leg>=.5&&!L.ac)tips.push('Um dente de alho ou um pouco de cebola ajuda a absorver o zinco.');
@@ -606,7 +599,6 @@ function sMeal({d,i}){
   if(m.parts)h+=`<div class="box">${m.parts.map(p=>p.t==='r'?`<button class="li tap" data-act="recipe" data-v="${p.id}"><span class="tx"><span class="t1">${esc(R[p.id].n)}</span><span class="t2 num">${R[p.id].tipo.map(t=>TIPO[t]).join(', ')} · ${fmtM(q4(p.m*m.m))} porção</span></span>${ic('menu_book')}</button>`:`<div class="li">${stDot(p.k)}<span class="tx"><span class="t1">${esc(F[p.k].n)}</span><span class="t2">${(F[p.k].comp?TIPO[F[p.k].comp]:'')}</span></span><span class="t2 num">${fmtQ(p.k,p.g*m.m)}</span></div>`).join('')}</div>`;
   h+=`<div class="li" style="padding:0"><span class="t1" style="flex:1">Porção</span><span class="stepper"><button data-act="m-" data-d="${d}" data-i="${i}" aria-label="Menos">${ic('remove')}</button><span>${fmtM(m.m)}</span><button data-act="m+" data-d="${d}" data-i="${i}" aria-label="Mais">${ic('add')}</button></span></div>
   ${miss.length?`<div class="warn">${ic('warning')}<span>Falta: ${esc(miss.join(', '))}</span></div>`:''}
-  ${trocas.length?`<div class="hint">${ic('info')}<span>${trocas.map(k=>'Em vez de '+esc(shortName(k).toLowerCase())+', usa '+esc(shortName(best(k)).toLowerCase())).join('. ')}.</span></div>`:''}
   ${tips.map(t=>`<div class="hint">${ic('info')}<span>${t}</span></div>`).join('')}
   <div class="btnrow">${m.done?`<button class="btn out" data-act="undone" data-d="${d}" data-i="${i}">Desmarcar</button>`:`<button class="btn fill" data-act="done" data-d="${d}" data-i="${i}">${ic('check')}Fiz isto</button>`}
   <button class="btn ${m.lock?'':'out'}" data-act="lock" data-d="${d}" data-i="${i}" aria-pressed="${!!m.lock}">${ic(m.lock?'lock':'lock_open',m.lock?'fill':'')}${m.lock?'Fixada':'Fixar'}</button>
@@ -635,7 +627,7 @@ function sRecipe({id}){
   (r.slots.length?`<button class="btn ${wish?'':'out'}" style="align-self:flex-start" data-act="wish" data-v="${id}" aria-pressed="${wish}">${ic('bookmark',wish?'fill':'')}${wish?'Na lista “quero fazer”':'Quero fazer'}</button>`:'')+
   `${r.tipo?`<p class="note">Entra nos pratos montados do plano como ${r.tipo.map(t=>TIPO[t]).join(' e ')}.</p>`:''}
   <div class="sec" style="margin-top:0">Ingredientes por porção</div>
-  <div class="box">${r.ing.map(([k,g])=>`<div class="li" style="min-height:48px">${stDot(best(k),'sm')}<span class="t1" style="flex:1">${esc(F[k].n)}${best(k)!==k?` <span class="t2">→ usa ${esc(shortName(best(k)).toLowerCase())}</span>`:''}</span><span class="t2 num">${fmtQ(k,g/r.sv)}</span></div>`).join('')}</div>
+  <div class="box">${r.ing.map(([k,g])=>`<div class="li" style="min-height:48px">${stDot(k,'sm')}<span class="t1" style="flex:1">${esc(F[k].n)}</span><span class="t2 num">${fmtQ(k,g/r.sv)}</span></div>`).join('')}</div>
   <p class="note">${r.est?'Esta nota não tem a propriedade despensa: as quantidades foram tiradas da lista de ingredientes e podem falhar.':'Quantidades da propriedade despensa da nota.'} Sal, especiarias e água não contam.</p>
   ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i})=>`<option value="${i}">${SLOTS[s]}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
   <a class="btn text" href="${url}" style="align-self:flex-start;text-decoration:none">${ic('open_in_new')}Abrir a nota no Obsidian</a>`;
