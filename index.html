@@ -275,7 +275,8 @@ function scoreIngs(ings,share,accL,key,sv,used,rand,bonus=0){
   const L=layersOf(ings);let gain=0;
   for(const [g,,t] of [...LAYER1,...LAYER2])gain+=Math.min(L[g],Math.max(0,t-accL[g]))/t;
   // ingredientes fora de época que não estão em casa: a receita fica para trás
-  let pen=1.5*mainKeys(ings).filter(k=>!available(k)).length;if(used.today.has(key))pen+=10;if(used.recent.has(key))pen+=sv>=3?1:2.5;
+  let pen=1.5*mainKeys(ings).filter(k=>!available(k)).length;if(used.today.has(key))pen+=10;// as sobras já repetem a receita; voltar a cozinhá-la na mesma semana conta como repetição
+  if(used.recent.has(key))pen+=2.5;
   return 5*ingCoverage(ings)-2*e+1.2*gain-pen+rand*.9+bonus;
 }
 // prato montado: a proteína acerta a proteína, a base completa as calorias, 2 legumes tapam o que falta nas camadas
@@ -328,14 +329,15 @@ function pickFor(d,slotIdx,excludeKey){
   if(POOL[slot]==='ref')for(const P of COMP.proteina)for(const B of COMP.base){
     const meal=buildCombo(P,B,share,accL,avoid,rand),key=mealKey(meal);if(key===excludeKey)continue;
     const ings=mealIngs(meal);
-    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),-1.2)});
+    // as receitas têm sempre preferência: peças soltas só ganham quando nenhuma receita serve
+    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),-3.5)});
   }
   // produtos embalados (barras, bebida de chocolate) contam menos, para não aparecerem todos os dias
   if(POOL[slot]==='la')for(const [id,ps,proc] of ANCHORS)for(const fk of SNACK_FRUIT.filter(available))for(const n of proc?[1]:[1,1.5]){
     const key='s:'+id;if(key===excludeKey)continue;
     const meal={parts:[...ps.map(([k,g])=>({t:'f',k,g:g*n})),{t:'f',k:fk,g:unitG(fk)}],m:1,snack:id};
     const ings=mealIngs(meal);
-    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),seasonScore(fk)-(proc?.15:0)-(avoid.has(fk)?.5:0)-.2)});
+    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),seasonScore(fk)-(proc?.15:0)-(avoid.has(fk)?.5:0)-3.5)});
   }
   return out.sort((a,b)=>b.score-a.score);
 }
