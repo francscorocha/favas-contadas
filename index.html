@@ -200,7 +200,7 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 <div id="sheet"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="dados.js?v=4448ac7e20"></script>
+<script src="dados.js?v=41b69e90a2"></script>
 <script>
 // ---------- Dados: dados.js é gerado pelo build.mjs a partir das notas do Obsidian
 const F=window.DADOS.alimentos;
@@ -234,7 +234,10 @@ const st=k=>S.pantry[k]||'a';
 const haveW=k=>({t:1,p:.7,a:0})[st(k)];
 // época: fruta e legumes fora de época só entram se já os tiveres em casa
 const MES=new Date().getMonth()+1;
-const inSeason=k=>{const e=F[k]&&F[k].ep;return !e||(e[0]<=e[1]?MES>=e[0]&&MES<=e[1]:MES>=e[0]||MES<=e[1])};
+const noMes=e=>e[0]<=e[1]?MES>=e[0]&&MES<=e[1]:MES>=e[0]||MES<=e[1];
+const inSeason=k=>{const e=F[k]&&F[k].ep;return !e||noMes(e)};
+// época alta: o que se vende o ano todo mas está na altura da produção nacional
+const inPeak=k=>{const e=F[k]&&(F[k].ep||F[k].top);return !!e&&noMes(e)};
 const available=k=>inSeason(k)||st(k)!=='a';
 const Z=()=>({kcal:0,p:0,c:0,f:0});
 function addFood(acc,k,g){const x=F[k];if(!x)return acc;acc.kcal+=x.k*g/100;acc.p+=x.p*g/100;acc.c+=x.c*g/100;acc.f+=x.f*g/100;return acc}
@@ -275,7 +278,7 @@ function scoreIngs(ings,share,accL,key,sv,used,rand,bonus=0){
   const L=layersOf(ings);let gain=0;
   for(const [g,,t] of [...LAYER1,...LAYER2])gain+=Math.min(L[g],Math.max(0,t-accL[g]))/t;
   // ingredientes fora de época que não estão em casa: a receita fica para trás
-  let pen=1.5*mainKeys(ings).filter(k=>!available(k)).length;if(used.today.has(key))pen+=10;// as sobras já repetem a receita; voltar a cozinhá-la na mesma semana conta como repetição
+  let pen=1.5*mainKeys(ings).filter(k=>!available(k)).length-.15*mainKeys(ings).filter(inPeak).length;if(used.today.has(key))pen+=10;// as sobras já repetem a receita; voltar a cozinhá-la na mesma semana conta como repetição
   if(used.recent.has(key))pen+=2.5;
   return 5*ingCoverage(ings)-2*e+1.2*gain-pen+rand*.9+bonus;
 }
@@ -290,7 +293,7 @@ const ANCHORS=[
 ].filter(([,ps])=>ps.every(([k])=>F[k]));
 const SNACK_FRUIT=['maca','pera','banana','laranja','tangerina','uvas','diospiro','ameixa','bagas','cenoura'].filter(k=>F[k]);
 // fruta da época tem um pequeno bónus
-const seasonScore=k=>F[k].ep&&inSeason(k)?.3:0;
+const seasonScore=k=>inPeak(k)?.3:0;
 const unitG=k=>F[k].u?F[k].u[2]:F[k].s1||100;
 function buildCombo(P,B,share,accL,avoid=new Set(),rnd=()=>0){
   const G=S.goals,Pu=unitPart(P),Bu=unitPart(B);
@@ -299,7 +302,7 @@ function buildCombo(P,B,share,accL,avoid=new Set(),rnd=()=>0){
   for(let n=0;n<2;n++){
     let best=null,bs=-1;
     for(const V of COMP.legume){if(vegs.some(v=>v.k===V.k)||!available(V.k))continue;
-      const L=layersOf(partIngs(unitPart(V)));let s=.8*haveW(V.k)+.5*rnd()-(avoid.has(V.k)?.7:0);
+      const L=layersOf(partIngs(unitPart(V)));let s=.8*haveW(V.k)+(inPeak(V.k)?.4:0)+.5*rnd()-(avoid.has(V.k)?.7:0);
       for(const [g,,t] of LAYER1)s+=Math.min(L[g],Math.max(0,t-taken[g]))/t;
       if(s>bs){bs=s;best=V}}
     const v=unitPart(best);vegs.push(v);const L=layersOf(partIngs(v));for(const g in L)if(typeof L[g]==='number')taken[g]+=L[g];
@@ -524,7 +527,7 @@ function despensaResults(){
 }
 function pRow(k){
   const s=st(k),n=esc(itemName(k));
-  return `<div class="li split"><button class="main tap" data-act="toggle" data-k="${k}" role="checkbox" aria-checked="${s==='t'?'true':s==='p'?'mixed':'false'}">${stDot(k)}<span class="t1">${n}</span></button>
+  return `<div class="li split"><button class="main tap" data-act="toggle" data-k="${k}" role="checkbox" aria-checked="${s==='t'?'true':s==='p'?'mixed':'false'}">${stDot(k)}<span class="t1">${n}${inPeak(k)?' <span class="tag hi">época</span>':''}</span></button>
   ${s!=='a'?`<button class="chip small" data-act="low" data-k="${k}" aria-pressed="${s==='p'}" aria-label="${n}: pouco">Pouco</button>`:''}
   ${S.custom[k]?`<button class="ibtn" data-act="rmcustom" data-k="${k}" aria-label="Apagar ${n}">${ic('delete')}</button>`:''}</div>`;
 }
