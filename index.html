@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,search,share,shopping_basket,takeout_dining,track_changes,upload,warning&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,scale,search,share,shopping_basket,takeout_dining,track_changes,upload,warning&display=block">
 <style>
 /* Layout: app Android (Material 3) — barra de topo, conteúdo numa coluna com listas agrupadas, barra de navegação em baixo, folhas que sobem do fundo */
 :root{
@@ -200,7 +200,7 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 <div id="sheet"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="dados.js?v=41b69e90a2"></script>
+<script src="dados.js?v=779dd7cc93"></script>
 <script>
 // ---------- Dados: dados.js é gerado pelo build.mjs a partir das notas do Obsidian
 const F=window.DADOS.alimentos;
@@ -219,7 +219,7 @@ const LAYER1=[['folhas','Folhas escuras',2],['cruc','Crucíferos',1],['cereais',
 const LAYER2=[['ferm','Fermentado',1],['omega','Linhaça, chia ou nozes',1]];
 
 // ---------- Estado
-const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3},plan:null,shop:{manual:[]}};
+const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],qty:{},ok:{},goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3},plan:null,shop:{manual:[]}};
 let S=structuredClone(DEFAULT);
 const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[]};
 
@@ -252,7 +252,10 @@ const mealName=m=>m.parts?m.parts.map(partName).join(' + '):R[m.r].n;
 const mealKey=m=>m.snack?'s:'+m.snack:m.parts?'c:'+(m.parts[0].t==='f'?m.parts[0].k:m.parts[0].id):m.r;
 const validMeal=m=>m&&(m.parts?m.parts.every(p=>p.t==='f'?F[p.k]:R[p.id]):R[m.r]);
 const mainKeys=ings=>{const s=new Set();for(const {k,g} of ings)if(g>=3)s.add(k);return [...s]};
-function ingCoverage(ings){const ks=mainKeys(ings);return ks.length?ks.reduce((s,k)=>s+haveW(k),0)/ks.length:1}
+const haveQ=(k,g)=>{const q=S.qty[k];return q!=null&&st(k)!=='a'&&q<g*.8?.4:haveW(k)};
+function ingCoverage(ings){const t={};for(const {k,g} of ings)if(g>=3)t[k]=(t[k]||0)+g;const ks=Object.keys(t);return ks.length?ks.reduce((s,k)=>s+haveQ(k,t[k]),0)/ks.length:1}
+// o que não chega nesta refeição, nos itens com quantidade conhecida
+const mealShort=m=>{if(m.sobra)return [];const t={};for(const {k,g} of mealIngs(m))t[k]=(t[k]||0)+g;return Object.entries(t).filter(([k,g])=>S.qty[k]!=null&&st(k)!=='a'&&S.qty[k]<g*.95)};
 const ingCount=ings=>{const ks=mainKeys(ings);return [ks.filter(k=>st(k)!=='a').length,ks.length]};
 const recIngs=r=>r.ing.map(([k,g])=>({k,g:g/r.sv}));
 const coverage=r=>ingCoverage(recIngs(r));
@@ -431,18 +434,31 @@ function setGoal(k,v){
 
 // ---------- Lista de compras
 function sourceDone(m){return m.sobra&&S.plan.days[m.from[0]]?.meals[m.from[1]]?.done}
-function shoppingList(){
-  const need={};
+// tudo o que o plano ainda vai usar (refeições por fazer e extras)
+function planUse(){
+  const use={},why={};
   if(S.plan)S.plan.days.forEach(day=>{
-    day.meals.forEach(m=>{if(!m||m.done||sourceDone(m))return;for(const {k,g} of mealIngs(m)){if(st(k)==='t')continue;(need[k]||(need[k]={g:0,why:new Set()})).g+=g;need[k].why.add(m.parts?partName(m.parts[0])+' + …':R[m.r].n)}});
-    day.extras.forEach(e=>{if(st(e.k)==='t')return;(need[e.k]||(need[e.k]={g:0,why:new Set()})).g+=e.g;need[e.k].why.add('extra')});
+    day.meals.forEach(m=>{if(!m||m.done||sourceDone(m))return;for(const {k,g} of mealIngs(m)){use[k]=(use[k]||0)+g;(why[k]||(why[k]=new Set())).add(m.parts?partName(m.parts[0])+' + …':R[m.r].n)}});
+    day.extras.forEach(e=>{use[e.k]=(use[e.k]||0)+e.g;(why[e.k]||(why[e.k]=new Set())).add('extra')});
   });
-  const plan=[],low=[];
-  for(const [k,v] of Object.entries(need)){(st(k)==='p'?low:plan).push({k,g:v.g,why:[...v.why]})}
-  for(const k of Object.keys(S.pantry))if(st(k)==='p'&&!need[k])low.push({k,g:0,why:[]});
+  return {use,why};
+}
+function shoppingList(){
+  const {use,why}=planUse(),plan=[],low=[],check=[];
+  for(const [k,g] of Object.entries(use)){
+    const s=st(k),q=S.qty[k],w=[...why[k]];
+    if(s==='a'){plan.push({k,g,why:w});continue}
+    // sabes quanto tens: só a diferença vai para as compras
+    if(q!=null){if(g>q*1.05)(s==='p'?low:plan).push({k,g:g-q,why:w,short:{q,use:g}});continue}
+    if(s==='p'){low.push({k,g,why:w});continue}
+    // tens, mas não disseste quanto: pergunta se chega quando o plano usa uma quantidade que se nota
+    const muito=F[k]&&F[k].u?g>=2*F[k].u[2]:g>=250;
+    if(muito&&!(S.ok[k]&&g<=S.ok[k]*1.15))check.push({k,g,why:w});
+  }
+  for(const k of Object.keys(S.pantry))if(st(k)==='p'&&use[k]==null)low.push({k,g:0,why:[]});
   for(const k of Object.keys(S.custom))if(st(k)==='p'&&!low.find(x=>x.k===k))low.push({k,g:0,why:[]});
   const byCat=(a,b)=>CATS.indexOf(itemCat(a.k))-CATS.indexOf(itemCat(b.k))||itemName(a.k).localeCompare(itemName(b.k),'pt');
-  return {plan:plan.sort(byCat),low:low.sort(byCat)};
+  return {plan:plan.sort(byCat),low:low.sort(byCat),check:check.sort((a,b)=>b.g-a.g).slice(0,8)};
 }
 const itemName=k=>F[k]?F[k].n:(S.custom[k]?S.custom[k].n:k);
 const itemCat=k=>F[k]?F[k].cat:(S.custom[k]?S.custom[k].cat:'Outros');
@@ -527,7 +543,8 @@ function despensaResults(){
 }
 function pRow(k){
   const s=st(k),n=esc(itemName(k));
-  return `<div class="li split"><button class="main tap" data-act="toggle" data-k="${k}" role="checkbox" aria-checked="${s==='t'?'true':s==='p'?'mixed':'false'}">${stDot(k)}<span class="t1">${n}${inPeak(k)?' <span class="tag hi">época</span>':''}</span></button>
+  return `<div class="li split"><button class="main tap" data-act="toggle" data-k="${k}" role="checkbox" aria-checked="${s==='t'?'true':s==='p'?'mixed':'false'}">${stDot(k)}<span class="tx"><span class="t1">${n}${inPeak(k)?' <span class="tag hi">época</span>':''}</span>${S.qty[k]!=null&&s!=='a'?`<span class="t2">~${fmtQ(k,S.qty[k])}</span>`:''}</span></button>
+  ${s!=='a'?`<button class="ibtn" data-act="qty" data-k="${k}" aria-label="Quanto tens de ${n}" title="Quanto tens">${ic('scale')}</button>`:''}
   ${s!=='a'?`<button class="chip small" data-act="low" data-k="${k}" aria-pressed="${s==='p'}" aria-label="${n}: pouco">Pouco</button>`:''}
   ${S.custom[k]?`<button class="ibtn" data-act="rmcustom" data-k="${k}" aria-label="Apagar ${n}">${ic('delete')}</button>`:''}</div>`;
 }
@@ -535,10 +552,11 @@ function pRow(k){
 function vCompras(sl){
   let h=`<div class="search">${ic('add')}<input type="text" id="sq" placeholder="Juntar à lista" data-in="sq" autocomplete="off" enterkeyhint="done"><button class="ibtn" data-act="addshop" aria-label="Juntar">${ic('check')}</button></div>`;
   const row=(k,detail)=>`<label class="li tap"><input type="checkbox" class="cbx" data-act="bought" data-k="${k}"><span class="tx"><span class="t1">${esc(itemName(k))}</span><span class="t2">${detail}</span></span></label>`;
-  if(sl.plan.length)h+=`<div class="sec">Para o plano</div><div class="box">${sl.plan.map(x=>row(x.k,`<span class="num">${fmtQ(x.k,x.g)}</span> · ${esc(x.why.slice(0,2).join(', '))}${x.why.length>2?'…':''}`)).join('')}</div>`;
-  if(sl.low.length)h+=`<div class="sec">A acabar</div><div class="box">${sl.low.map(x=>row(x.k,x.g?`<span class="num">${fmtQ(x.k,x.g)}</span> no plano`:'repor')).join('')}</div>`;
+  if(sl.plan.length)h+=`<div class="sec">Para o plano</div><div class="box">${sl.plan.map(x=>row(x.k,x.short?`faltam <span class="num">${fmtQ(x.k,x.g)}</span> · tens ~${fmtQ(x.k,x.short.q)}, o plano usa ${fmtQ(x.k,x.short.use)}`:`<span class="num">${fmtQ(x.k,x.g)}</span> · ${esc(x.why.slice(0,2).join(', '))}${x.why.length>2?'…':''}`)).join('')}</div>`;
+  if(sl.low.length)h+=`<div class="sec">A acabar</div><div class="box">${sl.low.map(x=>row(x.k,x.short?`faltam <span class="num">${fmtQ(x.k,x.g)}</span> · tens ~${fmtQ(x.k,x.short.q)}`:x.g?`<span class="num">${fmtQ(x.k,x.g)}</span> no plano`:'repor')).join('')}</div>`;
+  if(sl.check.length)h+=`<div class="sec">Vê se chega</div><div class="box">${sl.check.map(x=>`<div class="li"><span class="tx"><span class="t1">${esc(itemName(x.k))}</span><span class="t2">O plano usa <span class="num">${fmtQ(x.k,x.g)}</span>${F[x.k]&&F[x.k].u?` (${fmtG(x.g)})`:''}</span></span><button class="chip small" data-act="okqty" data-k="${x.k}" data-g="${Math.round(x.g)}">Chega</button><button class="chip small" data-act="qty" data-k="${x.k}">Não chega</button></div>`).join('')}</div><p class="note">Tens estes itens, mas o plano usa bastante. Se não chegar, diz quanto tens, à vista, e a diferença entra na lista.</p>`;
   if(S.shop.manual.length)h+=`<div class="sec">Outras coisas</div><div class="box">${S.shop.manual.map((x,i)=>`<label class="li tap"><input type="checkbox" class="cbx" data-act="boughtm" data-i="${i}"><span class="t1">${esc(x.n)}</span></label>`).join('')}</div>`;
-  if(!sl.plan.length&&!sl.low.length&&!S.shop.manual.length)h+=`<div class="hint">${ic('check')}<span>Tens tudo o que o plano pede. O que marcares como <b>Pouco</b> na despensa aparece aqui.</span></div>`;
+  if(!sl.plan.length&&!sl.low.length&&!sl.check.length&&!S.shop.manual.length)h+=`<div class="hint">${ic('check')}<span>Tens tudo o que o plano pede. O que marcares como <b>Pouco</b> na despensa aparece aqui.</span></div>`;
   else h+=`<p class="note">Ao riscar, o item passa a “Tenho” na despensa. As sobras não contam outra vez: os ingredientes já estão na receita do dia em que cozinhas.</p>`;
   return h;
 }
@@ -583,7 +601,7 @@ function vObjetivos(){
 function renderSheet(){
   const el=document.getElementById('sheet'),s=ui.sheet;
   if(!s){el.innerHTML='';return}
-  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):sCooked(s);
+  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):s.type==='qty'?sQty(s):sCooked(s);
   const keep=el.querySelector('.sheet')?.scrollTop||0;
   el.innerHTML=`<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true">${body}</div></div>`;
   if(keep)el.querySelector('.sheet').scrollTop=keep;
@@ -592,7 +610,7 @@ const sheetTop=(title,over)=>`<div class="top"><div class="handle"></div>${over?
 const pills=M=>`<div class="pills">${[[M.kcal,'kcal'],[M.p,'g prot.'],[M.c,'g hidr.'],[M.f,'g gord.']].map(([v,u])=>`<span class="pill">${Math.round(v)} ${u}</span>`).join('')}</div>`;
 function sMeal({d,i}){
   const m=S.plan.days[d].meals[i],ings=mealIngs(m),M=macrosOf(ings),L=layersOf(ings);
-  const miss=mealMiss(m).map(k=>F[k].n);
+  const miss=mealMiss(m).map(k=>F[k].n),curto=mealShort(m);
   const tips=[];
   if(L.leg>=.5&&!L.vc)tips.push('Junta vitamina C (limão, pimento cru, laranja) para absorver melhor o ferro.');
   if(L.leg>=.5&&!L.ac)tips.push('Um dente de alho ou um pouco de cebola ajuda a absorver o zinco.');
@@ -604,6 +622,7 @@ function sMeal({d,i}){
   if(m.parts)h+=`<div class="box">${m.parts.map(p=>p.t==='r'?`<button class="li tap" data-act="recipe" data-v="${p.id}"><span class="tx"><span class="t1">${esc(R[p.id].n)}</span><span class="t2 num">${R[p.id].tipo.map(t=>TIPO[t]).join(', ')} · ${fmtM(q4(p.m*m.m))} porção</span></span>${ic('menu_book')}</button>`:`<div class="li">${stDot(p.k)}<span class="tx"><span class="t1">${esc(F[p.k].n)}</span><span class="t2">${(F[p.k].comp?TIPO[F[p.k].comp]:'')}</span></span><span class="t2 num">${fmtQ(p.k,p.g*m.m)}</span></div>`).join('')}</div>`;
   h+=`<div class="li" style="padding:0"><span class="t1" style="flex:1">Porção</span><span class="stepper"><button data-act="m-" data-d="${d}" data-i="${i}" aria-label="Menos">${ic('remove')}</button><span>${fmtM(m.m)}</span><button data-act="m+" data-d="${d}" data-i="${i}" aria-label="Mais">${ic('add')}</button></span></div>
   ${miss.length?`<div class="warn">${ic('warning')}<span>Falta: ${esc(miss.join(', '))}</span></div>`:''}
+  ${curto.length?`<div class="warn">${ic('warning')}<span>Não chega: ${curto.map(([k,g])=>esc(shortName(k).toLowerCase())+' (tens ~'+fmtQ(k,S.qty[k])+', precisa de '+fmtQ(k,g)+')').join(', ')}</span></div>`:''}
   ${tips.map(t=>`<div class="hint">${ic('info')}<span>${t}</span></div>`).join('')}
   <div class="btnrow">${m.done?`<button class="btn out" data-act="undone" data-d="${d}" data-i="${i}">Desmarcar</button>`:`<button class="btn fill" data-act="done" data-d="${d}" data-i="${i}">${ic('check')}Fiz isto</button>`}
   <button class="btn ${m.lock?'':'out'}" data-act="lock" data-d="${d}" data-i="${i}" aria-pressed="${!!m.lock}">${ic(m.lock?'lock':'lock_open',m.lock?'fill':'')}${m.lock?'Fixada':'Fixar'}</button>
@@ -636,6 +655,14 @@ function sRecipe({id}){
   <p class="note">${r.est?'Esta nota não tem a propriedade despensa: as quantidades foram tiradas da lista de ingredientes e podem falhar.':'Quantidades da propriedade despensa da nota.'} Sal, especiarias e água não contam.</p>
   ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i})=>`<option value="${i}">${SLOTS[s]}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
   <a class="btn text" href="${url}" style="align-self:flex-start;text-decoration:none">${ic('open_in_new')}Abrir a nota no Obsidian</a>`;
+}
+function sQty({k}){
+  const x=F[k],u=x&&x.u,g=planUse().use[k]||0,q=S.qty[k];
+  const opts=u?[.5,1,2,3,4,6].map(n=>n*u[2]):[100,250,500,1000];
+  return sheetTop(esc(itemName(k)),'Quanto tens, mais ou menos?')+`<p class="t2" style="margin:0">${g?`O plano usa ${fmtQ(k,g)}${u?' ('+fmtG(g)+')':''}. `:''}Não é preciso pesar: escolhe o mais parecido. Quando marcas uma refeição como feita, a app desconta.</p>
+  <div class="pills">${opts.map(v=>`<button class="chip" data-act="setqty" data-k="${k}" data-g="${v}" aria-pressed="${q!=null&&Math.abs(q-v)<1}">${fmtQ(k,v)}</button>`).join('')}</div>
+  <label class="field"><span>Ou em gramas</span><input type="number" inputmode="numeric" id="qtyg" value="${q!=null?Math.round(q):''}"></label>
+  <div class="btnrow"><button class="btn fill" data-act="setqty" data-k="${k}">Guardar</button>${q!=null?`<button class="btn out" data-act="clearqty" data-k="${k}">Não sei quanto</button>`:''}</div>`;
 }
 function sCooked({d,i}){
   const m=S.plan.days[d].meals[i];
@@ -678,12 +705,21 @@ document.addEventListener('click',e=>{
     case 'm-':case 'm+':{const m=day.meals[i];m.m=a==='m-'?Math.max(.25,m.m-.25):Math.min(4,m.m+.25);
       S.plan.days.forEach(x=>x.meals.forEach(y=>{if(y&&y.sobra&&y.from[0]===d&&y.from[1]===i)y.m=m.m}));save();break}
     case 'lock':day.meals[i].lock=!day.meals[i].lock;save();toast(day.meals[i].lock?'Fixada: fica quando refazes o plano':'Já não está fixada');break;
-    case 'done':{const m=day.meals[i];m.done=true;if(!m.parts)S.wish=S.wish.filter(x=>x!==m.r);save();if(m.sobra){closeSheet();return}openSheet({type:'cooked',d,i});return}
+    case 'done':{const m=day.meals[i];m.done=true;
+      // desconta o que se sabe que havia; uma receita com sobras gasta a receita toda nesse dia
+      if(!m.sobra){const n=1+S.plan.days.flatMap(x=>x.meals).filter(y=>y&&y.sobra&&y.from[0]===d&&y.from[1]===i).length;
+        for(const {k,g} of mealIngs(m)){if(S.qty[k]==null)continue;const q=S.qty[k]-g*n;
+          if(q<=0){delete S.qty[k];S.pantry[k]='a'}else{S.qty[k]=Math.round(q);if(q<(F[k]&&F[k].u?F[k].u[2]*.75:50))S.pantry[k]='p'}}}if(!m.parts)S.wish=S.wish.filter(x=>x!==m.r);save();if(m.sobra){closeSheet();return}openSheet({type:'cooked',d,i});return}
     case 'undone':day.meals[i].done=false;save();break;
     case 'regen':generatePlan();ui.tab='plano';toast('Plano novo gerado');break;
     case 'addextra':day.extras.push({k:b.dataset.k,g:+b.dataset.g});save();break;
     case 'rmextra':undoable(itemName(day.extras[i].k)+' tirado do dia',()=>day.extras.splice(i,1));break;
-    case 'toggle':{const k=b.dataset.k;S.pantry[k]=st(k)==='a'?'t':'a';save();break}
+    case 'toggle':{const k=b.dataset.k;S.pantry[k]=st(k)==='a'?'t':'a';if(S.pantry[k]==='a')delete S.qty[k];save();break}
+    case 'qty':openSheet({type:'qty',k:b.dataset.k});return;
+    case 'setqty':{const k=b.dataset.k,g=b.dataset.g?+b.dataset.g:+document.getElementById('qtyg').value;if(!(g>0)){toast('Escolhe uma quantidade');return}
+      S.qty[k]=g;if(st(k)==='a')S.pantry[k]='t';delete S.ok[k];save();toast(itemName(k)+': ~'+fmtQ(k,g));closeSheet();return}
+    case 'clearqty':delete S.qty[b.dataset.k];save();closeSheet();return;
+    case 'okqty':S.ok[b.dataset.k]=+b.dataset.g;save();break;
     case 'low':{const k=b.dataset.k;S.pantry[k]=st(k)==='p'?'t':'p';save();break}
     case 'pf':ui.pf=v;break;
     case 'addcustom':{const n=ui.pq.trim();if(!n)return;const k='c_'+n.toLowerCase().normalize('NFD').replace(/[^a-z0-9]+/g,'_').slice(0,40);S.custom[k]={n,cat:document.getElementById('newcat').value};S.pantry[k]='t';ui.pq='';save();toast(n+' adicionado como “Tenho”');break}
@@ -706,7 +742,7 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
   const t=e.target;
-  if(t.dataset.act==='bought'){const k=t.dataset.k;undoable(itemName(k)+' → Tenho',()=>{S.pantry[k]='t'});setTimeout(render,250)}
+  if(t.dataset.act==='bought'){const k=t.dataset.k;undoable(itemName(k)+' → Tenho',()=>{S.pantry[k]='t';delete S.qty[k];delete S.ok[k]});setTimeout(render,250)}
   if(t.dataset.act==='boughtm'){const i=+t.dataset.i;undoable(S.shop.manual[i].n+' riscado',()=>S.shop.manual.splice(i,1));setTimeout(render,250)}
   if(t.id==='importar'&&t.files&&t.files[0]){t.files[0].text().then(txt=>{const o=JSON.parse(txt);if(!o||typeof o.pantry!=='object')throw 0;
     undoable('Cópia importada',()=>{S=merge(o);ensurePlan()});render()}).catch(()=>toast('Esse ficheiro não é uma cópia do Favas Contadas'));t.value=''}
