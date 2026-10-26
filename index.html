@@ -219,7 +219,7 @@ const LAYER1=[['folhas','Folhas escuras',2],['cruc','Crucíferos',1],['cereais',
 const LAYER2=[['ferm','Fermentado',1],['omega','Linhaça, chia ou nozes',1]];
 
 // ---------- Estado
-const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],qty:{},ok:{},goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3},plan:null,shop:{manual:[]}};
+const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],qty:{},ok:{},goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3,variedade:'media'},plan:null,shop:{manual:[]}};
 let S=structuredClone(DEFAULT);
 const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[]};
 
@@ -272,6 +272,9 @@ function dayIngs(d){const day=S.plan.days[d];return day.meals.flatMap(mealIngs).
 function activeSlots(){return S.goals.lanche?[['pa',.25],['al',.35],['la',.12],['ja',.28]]:[['pa',.28],['al',.38],['ja',.34]]}
 function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const q4=x=>Math.round(x*4)/4;
+// pen: castigo por repetir nos últimos dias (negativo = prefere repetir); win/winLa: dias que conta; sob: máx. de sobras [refeições, outros]; ext: até quantos dias
+const VAR={pouca:{pen:1.5,win:2,winLa:2,sob:[3,4],ext:[4,5]},media:{pen:2.5,win:3,winLa:5,sob:[2,3],ext:[3,4]},muita:{pen:4,win:5,winLa:6,sob:[1,1],ext:[2,2]}};
+const V=()=>VAR[S.goals.variedade]||VAR.media;
 const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
 function fitMult(r,kcalT){return clamp(q4(kcalT/Math.max(perServing(r).kcal,1)),.5,2.5)}
 
@@ -282,7 +285,7 @@ function scoreIngs(ings,share,accL,key,sv,used,rand,bonus=0){
   for(const [g,,t] of [...LAYER1,...LAYER2])gain+=Math.min(L[g],Math.max(0,t-accL[g]))/t;
   // ingredientes fora de época que não estão em casa: a receita fica para trás
   let pen=1.5*mainKeys(ings).filter(k=>!available(k)).length-.15*mainKeys(ings).filter(inPeak).length;if(used.today.has(key))pen+=10;// as sobras já repetem a receita; voltar a cozinhá-la na mesma semana conta como repetição
-  if(used.recent.has(key))pen+=2.5;
+  if(used.recent.has(key))pen+=V().pen;
   return 5*ingCoverage(ings)-2*e+1.2*gain-pen+rand*.9+bonus;
 }
 // prato montado: a proteína acerta a proteína, a base completa as calorias, 2 legumes tapam o que falta nas camadas
@@ -321,7 +324,7 @@ function pickFor(d,slotIdx,excludeKey){
   const accL=layersOf(others.flatMap(mealIngs));
   const used={today:new Set(others.map(mealKey)),recent:new Set()};
   // lanches rodam mais devagar (5 dias) para irem passando por barras, tortitas, pão…
-  for(let j=Math.max(0,d-(POOL[slot]==='la'?5:3));j<d;j++)S.plan.days[j].meals.forEach(x=>x&&used.recent.add(mealKey(x)));
+  for(let j=Math.max(0,d-(POOL[slot]==='la'?V().winLa:V().win));j<d;j++)S.plan.days[j].meals.forEach(x=>x&&used.recent.add(mealKey(x)));
   // legumes já usados hoje ou ontem ficam para trás, para variar
   const avoid=new Set([...others,...(d>0?S.plan.days[d-1].meals:[])].flatMap(x=>x&&x.parts?x.parts.filter(p=>p.t==='f').map(p=>p.k):[]));
   const planned=new Set();S.plan.days.forEach((dd,j)=>dd.meals.forEach((x,ii)=>{if(x&&!x.parts&&!(j===d&&ii===slotIdx))planned.add(x.r)}));
@@ -353,8 +356,8 @@ const toMeal=(c,slot)=>c.kind==='r'?{slot,r:c.r.id,m:c.m,done:false}:{slot,...st
 function scheduleSobras(d,i){
   const m=S.plan.days[d].meals[i];if(!m||m.parts||m.sobra)return;
   const r=R[m.r],pool=POOL[m.slot],sl=activeSlots();
-  let n=Math.min(Math.floor((r.sv-m.m)/m.m+.25),pool==='ref'?2:3);
-  for(let dd=d+1;dd<Math.min(S.plan.days.length,d+(pool==='ref'?3:4))&&n>0;dd++)
+  let n=Math.min(Math.floor((r.sv-m.m)/m.m+.25),pool==='ref'?V().sob[0]:V().sob[1]);
+  for(let dd=d+1;dd<Math.min(S.plan.days.length,d+(pool==='ref'?V().ext[0]:V().ext[1]))&&n>0;dd++)
     sl.forEach(([s],ii)=>{if(n>0&&POOL[s]===pool&&!S.plan.days[dd].meals[ii]){S.plan.days[dd].meals[ii]={slot:s,r:m.r,m:m.m,sobra:true,from:[d,i],done:false};n--}});
 }
 // tira as sobras de uma refeição que mudou e volta a preencher esses lugares
@@ -588,6 +591,7 @@ function vObjetivos(){
   <div class="fields">${fields}</div><span class="t2">${resumo}${S.ts===0?' Os valores de partida são um exemplo.':''}</span></div>
   <div class="sec">Plano</div><div class="box">
   <div class="li"><span class="t1" style="flex:1">Dias a planear</span><span class="segb" role="group" aria-label="Dias a planear">${[1,3,5,7].map(n=>`<button data-act="days" data-v="${n}" aria-pressed="${G.days===n}">${n}</button>`).join('')}</span></div>
+  <div class="li"><span class="tx"><span class="t1">Variedade</span><span class="t2">${{pouca:'Repete as mesmas refeições e usa mais sobras',media:'Equilíbrio entre variar e repetir',muita:'Quase sempre refeições diferentes, poucas sobras'}[G.variedade||'media']}</span></span><span class="segb" role="group" aria-label="Variedade">${[['pouca','Pouca'],['media','Média'],['muita','Muita']].map(([v,l])=>`<button data-act="var" data-v="${v}" aria-pressed="${(G.variedade||'media')===v}">${l}</button>`).join('')}</span></div>
   <div class="li"><span class="t1" style="flex:1">Incluir lanche</span><button class="sw" role="switch" aria-checked="${G.lanche}" aria-label="Incluir lanche" data-act="lanche" data-v="${G.lanche?0:1}"></button></div>
   <div class="li"><button class="btn fill wide" data-act="regen">${ic('refresh')}Gerar plano com estes objetivos</button></div></div>
   <div class="sec">Cópia de segurança</div><div class="box">
@@ -644,8 +648,8 @@ function swapResults(d,i){
 }
 function sRecipe({id}){
   const r=R[id],ps=perServing(r),wish=S.wish.includes(id);
-  const days=S.plan?S.plan.days.map((x,i)=>`<option value="${i}" ${i===ui.day?'selected':''}>${dayLabel(i)}</option>`).join(''):'';
-  const slots=activeSlots().map(([s],i)=>({s,i})).filter(({s})=>r.slots.includes(POOL[s]));
+  const days=S.plan?S.plan.days.map((x,i)=>`<option value="${i}" ${i===ui.day?'selected':''}>${dayLabel(i)}</option>`).join('')+(S.plan.days.length>1?'<option value="all">Todos os dias</option>':''):'';
+  const slots=r.slots.length?activeSlots().map(([s],i)=>({s,i,ok:r.slots.includes(POOL[s])})).sort((a,b)=>b.ok-a.ok):[];
   const url='obsidian://open?vault='+encodeURIComponent('Obsidian Vault')+'&file='+encodeURIComponent('02 - Recursos/Receitas/'+r.file);
   return sheetTop(esc(r.n),`Rende ${r.sv} ${r.sv>1?'porções':'porção'}${r.tipo?' · componente: '+r.tipo.map(t=>TIPO[t]).join(', '):''}${r.est?' · estimada':''}`)+pills(ps)+
   (r.slots.length?`<button class="btn ${wish?'':'out'}" style="align-self:flex-start" data-act="wish" data-v="${id}" aria-pressed="${wish}">${ic('bookmark',wish?'fill':'')}${wish?'Na lista “quero fazer”':'Quero fazer'}</button>`:'')+
@@ -653,7 +657,7 @@ function sRecipe({id}){
   <div class="sec" style="margin-top:0">Ingredientes por porção</div>
   <div class="box">${r.ing.map(([k,g])=>`<div class="li" style="min-height:48px">${stDot(k,'sm')}<span class="t1" style="flex:1">${esc(F[k].n)}</span><span class="t2 num">${fmtQ(k,g/r.sv)}</span></div>`).join('')}</div>
   <p class="note">${r.est?'Esta nota não tem a propriedade despensa: as quantidades foram tiradas da lista de ingredientes e podem falhar.':'Quantidades da propriedade despensa da nota.'} Sal, especiarias e água não contam.</p>
-  ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i})=>`<option value="${i}">${SLOTS[s]}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
+  ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i,ok})=>`<option value="${i}">${SLOTS[s]}${ok?'':' (fora do habitual)'}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
   <a class="btn text" href="${url}" style="align-self:flex-start;text-decoration:none">${ic('open_in_new')}Abrir a nota no Obsidian</a>`;
 }
 function sQty({k}){
@@ -730,10 +734,13 @@ document.addEventListener('click',e=>{
     case 'rf':ui.rf=v;break;
     case 'wish':{if(S.wish.includes(v)){S.wish=S.wish.filter(x=>x!==v);toast('Tirada da lista “quero fazer”')}
       else{S.wish.push(v);ensurePlan();const at=placeWish(v);toast(at?'Posta no plano: '+slotTxt(...at):'Fica na lista: entra no próximo plano')}save();break}
-    case 'toplan':{const dd=+document.getElementById('pd').value,ii=+document.getElementById('ps').value,r=R[v],[s,sh]=activeSlots()[ii];
-      replaceMeal(dd,ii,{slot:s,r:v,m:fitMult(r,S.goals.kcal*sh),lock:true,done:false});save();ui.day=dd;toast('Posta e fixada no plano: '+slotTxt(dd,ii));closeSheet();return}
+    case 'toplan':{const pd=document.getElementById('pd').value,ii=+document.getElementById('ps').value,r=R[v],[s,sh]=activeSlots()[ii];
+      const ds=pd==='all'?S.plan.days.map((x,j)=>j):[+pd];
+      for(const dd of ds)replaceMeal(dd,ii,{slot:s,r:v,m:fitMult(r,S.goals.kcal*sh),lock:true,done:false});
+      save();ui.day=ds[0];toast(pd==='all'?'Fixada em todos os dias: '+SLOTS[s].toLowerCase():'Posta e fixada no plano: '+slotTxt(ds[0],ii));closeSheet();return}
     case 'days':S.goals.days=+v;save();break;
     case 'lanche':S.goals.lanche=v==='1';save();break;
+    case 'var':S.goals.variedade=v;save();toast('Carrega em “Gerar plano” para aplicar');break;
     case 'gmode':S.goals.mode=v;syncGoals(S.goals);save();break;
     case 'closesheet':closeSheet();return;
     default:return;
