@@ -318,6 +318,27 @@ function buildCombo(P,B,share,accL,avoid=new Set(),rnd=()=>0){
   const fB=clamp(q4((G.kcal*share-vM.kcal-pM.kcal*fP)/Math.max(bM.kcal,1)),.5,2.5);
   return {parts:[scalePart(P,fP),scalePart(B,fB),...vegs],m:1};
 }
+// ---------- 30 plantas: cada planta diferente conta 1, ervas e especiarias contam ¼; óleos, açúcar e processados não contam
+const PLANT_ID={tofu:'soja',tofu_sedoso:'soja',tofu_fumado:'soja',tempeh:'soja',edamame:'soja',soja_tex:'soja',leite_soja:'soja',iog_soja:'soja',iog_proteico:'soja',miso:'soja',
+  pb:'amendoim',pb_po:'amendoim',amendoim:'amendoim',amendoas:'amendoa',manteiga_amendoa:'amendoa',leite_amendoa:'amendoa',tahini:'sesamo',sesamo:'sesamo',
+  farinha:'trigo',massa:'trigo',pao:'trigo',baguete:'trigo',tortilha:'trigo',panko:'trigo',massa_folhada:'trigo',seitan:'trigo',farinha_sarraceno:'sarraceno',
+  farinha_grao:'grao',grao:'grao',lentilhas:'lentilhas',lentilhas_vermelhas:'lentilhas',arroz:'arroz',arroz_integral:'arroz',arroz_sushi:'arroz',
+  tomate:'tomate',tomate_lata:'tomate',tomate_pasta:'tomate',tomate_seco:'tomate',leite_coco:'coco',iog_coco:'coco',chucrute:'couve',azeitonas:'azeitona'};
+const PLANT_NAME={soja:'Soja',amendoim:'Amendoim',amendoa:'Amêndoa',sesamo:'Sésamo',trigo:'Trigo',sarraceno:'Trigo-sarraceno',grao:'Grão-de-bico',lentilhas:'Lentilhas',
+  arroz:'Arroz',tomate:'Tomate',coco:'Coco',couve:'Couve (chucrute)',azeitona:'Azeitona'};
+const PLANT_QUARTER=new Set(['ervas','gengibre','cacau','alcaparras']);
+const NOT_PLANT=new Set(['azeite','oleo_sesamo','oleo_coco','maple','acucar','chocolate','tamari','maionese','ketchup','mostarda','vinagre','mirin','pesto','levedura',
+  'proteina','creatina','amido','barra_go_cacau','barra_go_banana','barra_crua','soja_choc','tortitas_grao','ananas']);
+function plantInfo(k){
+  const x=F[k];if(!x||NOT_PLANT.has(k))return null;
+  const planta=PLANT_ID[k]||x.g1||PLANT_QUARTER.has(k)||['Fruta e legumes','Frutos secos e sementes','Congelados'].includes(x.cat);
+  return planta?{id:PLANT_ID[k]||k,w:PLANT_QUARTER.has(k)?.25:1}:null;
+}
+function plantsOf(ings){const m=new Map();for(const {k,g} of ings){if(g<3)continue;const p=plantInfo(k);if(p&&!m.has(p.id))m.set(p.id,{w:p.w,k})}return m}
+const plantScore=m=>[...m.values()].reduce((s,x)=>s+x.w,0);
+// meta em curva: as plantas novas aparecem depressa nos primeiros dias (1 dia ≈ 11, 3 ≈ 20, 5 ≈ 25, 7 = 30)
+const plantTarget=()=>Math.round(30*Math.sqrt(S.plan.days.length/7));
+const plantName=(id,k)=>PLANT_NAME[id]||shortName(k);
 function pickFor(d,slotIdx,excludeKey){
   const day=S.plan.days[d],[slot,share]=activeSlots()[slotIdx];
   const others=day.meals.filter((x,i)=>i!==slotIdx&&x);
@@ -329,24 +350,27 @@ function pickFor(d,slotIdx,excludeKey){
   const avoid=new Set([...others,...(d>0?S.plan.days[d-1].meals:[])].flatMap(x=>x&&x.parts?x.parts.filter(p=>p.t==='f').map(p=>p.k):[]));
   const planned=new Set();S.plan.days.forEach((dd,j)=>dd.meals.forEach((x,ii)=>{if(x&&!x.parts&&!(j===d&&ii===slotIdx))planned.add(x.r)}));
   const rand=rng(S.plan.seed+d*977+slotIdx*31),out=[];
+  const jaTem=plantsOf(S.plan.days.flatMap((dd,j)=>dd.meals.filter((x,ii)=>x&&!(j===d&&ii===slotIdx)).flatMap(mealIngs)));
+  const falta=plantScore(jaTem)<plantTarget();
+  const novas=ings=>{if(!falta)return 0;let n=0;for(const [id,x] of plantsOf(ings))if(!jaTem.has(id))n+=x.w;return Math.min(1.5,.3*n)};
   for(const r of Object.values(R)){
     if(!r.slots.includes(POOL[slot])||r.id===excludeKey)continue;
     const m=fitMult(r,S.goals.kcal*share),ings=mealIngs({r:r.id,m});
     const wish=S.wish.includes(r.id)&&!planned.has(r.id)?4:0;
-    out.push({kind:'r',r,m,ings,score:scoreIngs(ings,share,accL,r.id,r.sv,used,rand(),wish)});
+    out.push({kind:'r',r,m,ings,score:scoreIngs(ings,share,accL,r.id,r.sv,used,rand(),wish+novas(ings))});
   }
   if(POOL[slot]==='ref')for(const P of COMP.proteina)for(const B of COMP.base){
     const meal=buildCombo(P,B,share,accL,avoid,rand),key=mealKey(meal);if(key===excludeKey)continue;
     const ings=mealIngs(meal);
     // as receitas têm sempre preferência: peças soltas só ganham quando nenhuma receita serve
-    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),-3.5)});
+    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),-3.5+novas(ings))});
   }
   // produtos embalados (barras, bebida de chocolate) contam menos, para não aparecerem todos os dias
   if(POOL[slot]==='la')for(const [id,ps,proc] of ANCHORS)for(const fk of SNACK_FRUIT.filter(available))for(const n of proc?[1]:[1,1.5]){
     const key='s:'+id;if(key===excludeKey)continue;
     const meal={parts:[...ps.map(([k,g])=>({t:'f',k,g:g*n})),{t:'f',k:fk,g:unitG(fk)}],m:1,snack:id};
     const ings=mealIngs(meal);
-    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),seasonScore(fk)-(proc?.15:0)-(avoid.has(fk)?.5:0)-3.5)});
+    out.push({kind:'c',meal,ings,score:scoreIngs(ings,share,accL,key,1,used,rand(),seasonScore(fk)-(proc?.15:0)-(avoid.has(fk)?.5:0)-3.5+novas(ings))});
   }
   return out.sort((a,b)=>b.score-a.score);
 }
@@ -504,6 +528,11 @@ function vPlano(){
   const fora=S.wish.filter(id=>R[id]&&!inPlan.has(id));
   if(fora.length)h+=`<div class="hint">${ic('bookmark','fill')}<span>Na lista “quero fazer” mas fora do plano: <b>${fora.map(id=>esc(R[id].n)).join(', ')}</b>. Carrega em ${ic('refresh','sm')} para as encaixar.</span></div>`;
   h+=`<div class="sec">3 camadas</div><div class="box pad"><div class="layers">${[...LAYER1,...LAYER2].map(([g,l,t])=>`<div class="lay"><span>${l}</span>${dots(L[g],t)}</div>`).join('')}</div></div>`;
+  const PL=plantsOf(S.plan.days.flatMap((x,j)=>dayIngs(j))),nP=plantScore(PL),TP=plantTarget();
+  const sugP=Object.keys(F).filter(k=>st(k)==='t'&&available(k)&&(()=>{const p=plantInfo(k);return p&&p.w===1&&!PL.has(p.id)})()).slice(0,6);
+  h+=`<div class="sec">Plantas diferentes</div><div class="box pad"><div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap"><span class="big" style="font-size:32px">${fmtN(nP)}</span><span class="t2">de ${TP} neste plano de ${S.plan.days.length} dia${S.plan.days.length>1?'s':''} (30 por semana)</span>${nP>=TP?'<span class="tag hi">meta cumprida</span>':''}</div><div class="bar"><i style="width:${Math.min(100,nP/TP*100)}%;background:var(--ok)"></i></div>
+    <details><summary class="t2" style="cursor:pointer">Ver as ${PL.size} plantas do plano</summary><div class="pills" style="margin-top:8px">${[...PL].map(([id,x])=>`<span class="pill">${esc(plantName(id,x.k))}${x.w<1?' · ¼':''}</span>`).join('')}</div></details>
+    ${nP<TP&&sugP.length?`<span class="t2">Para chegar à meta, junta hoje algo que tens em casa:</span><div class="pills">${sugP.map(k=>`<button class="chip" data-act="addextra" data-d="${d}" data-k="${k}" data-g="${Math.round(unitG(k))}">${ic('add','sm')}${esc(shortName(k))}</button>`).join('')}</div>`:''}</div>`;
   if(sugs.length||day.extras.length){
     h+=`<div class="sec">Para fechar o dia</div><div class="box">`;
     h+=day.extras.map((e,i)=>`<div class="li"><div class="tx"><span class="t1">${esc(itemName(e.k))}</span><span class="t2 num">${fmtQ(e.k,e.g)} · juntado</span></div><button class="ibtn" data-act="rmextra" data-d="${d}" data-i="${i}" aria-label="Tirar ${esc(itemName(e.k))}">${ic('close')}</button></div>`).join('');
@@ -598,7 +627,7 @@ function vObjetivos(){
   <button class="li tap" data-act="exportar">${ic('download')}<span class="tx"><span class="t1">Exportar cópia</span><span class="t2">Guarda um ficheiro com a despensa e o plano</span></span></button>
   <label class="li tap" for="importar">${ic('upload')}<span class="tx"><span class="t1">Importar cópia</span><span class="t2">Repõe a partir de um ficheiro exportado</span></span></label><input type="file" id="importar" accept="application/json,.json" hidden></div>
   <p class="note">Os dados ficam só neste telemóvel. ${Object.values(R).filter(r=>r.slots.length).length} receitas e ${Object.values(R).filter(r=>r.tipo).length} componentes do Obsidian, atualizados a ${window.DADOS.atualizado.split('-').reverse().join('/')}.</p>
-  <div class="sec">Como escolhe</div><div class="box pad"><span class="t2">Para cada refeição compara receitas e pratos montados (proteína + base + legumes). Dá prioridade ao que tens em casa e às receitas da lista “quero fazer”, ajusta a porção às calorias e macros, e prefere o que preenche as porções das 3 camadas que ainda faltam no dia. Receitas de várias porções ficam como sobras para os dias seguintes. Castanha-do-brasil, algas e suplementos ficam de fora.</span></div>`;
+  <div class="sec">Como escolhe</div><div class="box pad"><span class="t2">Para cada refeição compara receitas e pratos montados (proteína + base + legumes). Dá prioridade ao que tens em casa e às receitas da lista “quero fazer”, ajusta a porção às calorias e macros, e prefere o que preenche as porções das 3 camadas que ainda faltam no dia. Receitas de várias porções ficam como sobras para os dias seguintes. Enquanto o plano não chega à meta de plantas diferentes, as receitas com plantas novas ganham vantagem (ervas contam ¼; óleos, açúcar e produtos processados não contam). Castanha-do-brasil, algas e suplementos ficam de fora.</span></div>`;
 }
 
 // ---------- Folhas inferiores
