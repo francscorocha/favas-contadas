@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,scale,search,share,shopping_basket,takeout_dining,track_changes,upload,warning&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,scale,search,share,shopping_basket,takeout_dining,track_changes,tune,upload,warning&display=block">
 <style>
 /* Layout: app Android (Material 3) — barra de topo, conteúdo numa coluna com listas agrupadas, barra de navegação em baixo, folhas que sobem do fundo */
 :root{
@@ -103,6 +103,9 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 .btn.out{background:none;border:1px solid var(--line);color:var(--accent)}
 .btn.wide{width:100%;height:48px;border-radius:24px;font-size:15px}
 .btn .ms{font-size:20px}
+.btn:disabled{opacity:.45}
+.li.sel{background:var(--accent-soft);color:var(--on-accent-soft)}
+.li.sel .t2{color:inherit}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
 .btnrow .btn{flex:1}
 
@@ -221,7 +224,7 @@ const LAYER2=[['ferm','Fermentado',1],['omega','Linhaça, chia ou nozes',1]];
 // ---------- Estado
 const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],qty:{},ok:{},goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3,variedade:'media'},plan:null,shop:{manual:[]}};
 let S=structuredClone(DEFAULT);
-const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[]};
+const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[],cz:{i:0,id:null,days:[],q:''}};
 
 function lsGet(){try{return JSON.parse(localStorage.getItem('favas-contadas')||'null')}catch(e){return null}}
 function lsSet(){try{localStorage.setItem('favas-contadas',JSON.stringify(S));return true}catch(e){return false}}
@@ -524,6 +527,7 @@ function vPlano(){
   h+=`<div class="box sum"><div class="big">${Math.round(M.kcal)} <small>/ ${G.kcal} kcal</small></div>${bar(M.kcal,G.kcal,'var(--ink)')}
     <div class="mbars">${[['Proteína',M.p,G.p,'var(--accent)'],['Hidratos',M.c,G.c,'var(--mc)'],['Gordura',M.f,G.f,'var(--mf)']].map(([l,v,t,c])=>`<div class="mb"><span>${l}</span><b class="num">${Math.round(v)} <span class="muted" style="font-weight:400">/ ${t} g</span></b>${bar(v,t,c)}</div>`).join('')}</div></div>`;
   h+=`<div class="sec">Refeições</div><div class="box">${day.meals.map((m,i)=>mealRow(d,i,m)).join('')}</div>`;
+  h+=`<button class="btn wide" data-act="custom">${ic('tune')}Personalizar refeições</button>`;
   const inPlan=new Set(S.plan.days.flatMap(x=>x.meals.map(m=>m&&m.r)));
   const fora=S.wish.filter(id=>R[id]&&!inPlan.has(id));
   if(fora.length)h+=`<div class="hint">${ic('bookmark','fill')}<span>Na lista “quero fazer” mas fora do plano: <b>${fora.map(id=>esc(R[id].n)).join(', ')}</b>. Carrega em ${ic('refresh','sm')} para as encaixar.</span></div>`;
@@ -634,7 +638,7 @@ function vObjetivos(){
 function renderSheet(){
   const el=document.getElementById('sheet'),s=ui.sheet;
   if(!s){el.innerHTML='';return}
-  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):s.type==='qty'?sQty(s):sCooked(s);
+  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):s.type==='qty'?sQty(s):s.type==='custom'?sCustom():sCooked(s);
   const keep=el.querySelector('.sheet')?.scrollTop||0;
   el.innerHTML=`<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true">${body}</div></div>`;
   if(keep)el.querySelector('.sheet').scrollTop=keep;
@@ -688,6 +692,32 @@ function sRecipe({id}){
   <p class="note">${r.est?'Esta nota não tem a propriedade despensa: as quantidades foram tiradas da lista de ingredientes e podem falhar.':'Quantidades da propriedade despensa da nota.'} Sal, especiarias e água não contam.</p>
   ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i,ok})=>`<option value="${i}">${SLOTS[s]}${ok?'':' (fora do habitual)'}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
   <a class="btn text" href="${url}" style="align-self:flex-start;text-decoration:none">${ic('open_in_new')}Abrir a nota no Obsidian</a>`;
+}
+// personalizar: escolhe a refeição, procura a receita e marca os dias do plano onde ela fica fixada
+function sCustom(){
+  const c=ui.cz,sl=activeSlots(),[s]=sl[c.i],r=c.id&&R[c.id];
+  let h=sheetTop('Personalizar refeições','Escolhe a refeição, a receita e os dias');
+  h+=`<div class="chips">${sl.map(([x],i)=>`<button class="chip" data-act="czslot" data-v="${i}" aria-pressed="${i===c.i}">${i===c.i?ic('check','sm'):ic(SLOTICON[x],'sm')}${SLOTS[x]}</button>`).join('')}</div>`;
+  h+=`<div class="sec" style="margin-top:0">Receita</div>`;
+  if(r)h+=`<div class="box"><div class="li sel"><span class="tx"><span class="t1">${esc(r.n)}</span><span class="t2 num">${mtxt(perServing(r))} por porção${r.slots.includes(POOL[s])?'':' · fora do habitual'}</span></span><button class="btn text" data-act="czclear">Mudar</button></div></div>`;
+  else h+=`<label class="search">${ic('search')}<input type="search" id="czq" placeholder="Procurar receita ou ingrediente" value="${esc(c.q)}" data-in="czq" autocomplete="off" enterkeyhint="search"></label><div id="czres" style="display:flex;flex-direction:column;gap:12px">${customResults()}</div>`;
+  const n=c.days.length,all=n===S.plan.days.length;
+  h+=`<div class="sec" style="margin:0;display:flex;align-items:center"><span style="flex:1">Dias</span><button class="btn text" data-act="czall">${all?'Nenhum':'Todos'}</button></div>
+  <div class="box">${S.plan.days.map((day,d)=>{const m=day.meals[c.i],on=c.days.includes(d);
+    return `<button class="li tap" data-act="czday" data-d="${d}" role="checkbox" aria-checked="${on}"><span class="st ${on?'t':''}">${on?ic('check'):''}</span><span class="tx"><span class="t1">${dayLabel(d)}</span><span class="t2">${m?(m.lock?ic('lock','sm fill')+' ':'')+esc(mealName(m))+(m.done?' · feita':''):'—'}</span></span></button>`}).join('')}</div>`;
+  h+=`<button class="btn fill wide" data-act="czapply" ${r&&n?'':'disabled'}>${ic('add')}${!r?'Escolhe uma receita':!n?'Escolhe os dias':'Pôr em '+(all?'todos os dias':n+' dia'+(n>1?'s':''))}</button>
+  <p class="note">Fica fixada: quando refazes o plano, mantém-se. A porção ajusta-se às calorias desta refeição.</p>`;
+  return h;
+}
+function customResults(){
+  const c=ui.cz,q=c.q.trim().toLowerCase(),pool=POOL[activeSlots()[c.i][0]];
+  const list=Object.values(R).filter(r=>r.slots.length&&(!q||r.n.toLowerCase().includes(q)||r.ing.some(([k])=>F[k].n.toLowerCase().includes(q))))
+    .sort((a,b)=>S.wish.includes(b.id)-S.wish.includes(a.id)||coverage(b)-coverage(a)||a.n.localeCompare(b.n,'pt'));
+  const row=r=>`<button class="li tap" data-act="czpick" data-v="${r.id}"><span class="tx"><span class="t1">${S.wish.includes(r.id)?ic('bookmark','sm fill')+' ':''}${esc(r.n)}</span><span class="t2 num">${mtxt(perServing(r))}</span></span>${covTag(r)}</button>`;
+  const hab=list.filter(r=>r.slots.includes(pool)),out=q?list.filter(r=>!r.slots.includes(pool)):[];
+  if(!hab.length&&!out.length)return `<p class="note">Nenhuma receita encontrada.</p>`;
+  return (hab.length?`<div class="box">${hab.slice(0,q?40:12).map(row).join('')}</div>`:'')+(!q&&hab.length>12?`<p class="note">Mostra as 12 com mais coisas em casa. Procura para ver as outras.</p>`:'')+
+    (out.length?`<div class="sec" style="margin:0 4px -4px;color:var(--muted)">Fora do habitual nesta refeição</div><div class="box">${out.slice(0,20).map(row).join('')}</div>`:'');
 }
 function sQty({k}){
   const x=F[k],u=x&&x.u,g=planUse().use[k]||0,q=S.qty[k];
@@ -767,6 +797,16 @@ document.addEventListener('click',e=>{
       const ds=pd==='all'?S.plan.days.map((x,j)=>j):[+pd];
       for(const dd of ds)replaceMeal(dd,ii,{slot:s,r:v,m:fitMult(r,S.goals.kcal*sh),lock:true,done:false});
       save();ui.day=ds[0];toast(pd==='all'?'Fixada em todos os dias: '+SLOTS[s].toLowerCase():'Posta e fixada no plano: '+slotTxt(ds[0],ii));closeSheet();return}
+    case 'custom':ensurePlan();ui.cz={i:Math.min(ui.cz.i,activeSlots().length-1),id:null,days:[],q:''};openSheet({type:'custom'});return;
+    case 'czslot':ui.cz.i=+v;ui.cz.days=[];if(!ui.cz.id)ui.cz.q='';break;
+    case 'czpick':ui.cz.id=v;break;
+    case 'czclear':ui.cz.id=null;break;
+    case 'czday':{const c=ui.cz;c.days=c.days.includes(d)?c.days.filter(x=>x!==d):[...c.days,d].sort((a,b)=>a-b);break}
+    case 'czall':ui.cz.days=ui.cz.days.length===S.plan.days.length?[]:S.plan.days.map((x,j)=>j);break;
+    case 'czapply':{const c=ui.cz,r=R[c.id],[s,sh]=activeSlots()[c.i];if(!r||!c.days.length)return;
+      for(const dd of c.days)replaceMeal(dd,c.i,{slot:s,r:c.id,m:fitMult(r,S.goals.kcal*sh),lock:true,done:false});
+      save();ui.day=c.days[0];toast(r.n+' fixada: '+SLOTS[s].toLowerCase()+', '+(c.days.length===S.plan.days.length?'todos os dias':c.days.map(dayLabel).join(', ')));
+      c.id=null;c.q='';c.days=[];break}
     case 'days':S.goals.days=+v;save();break;
     case 'lanche':S.goals.lanche=v==='1';save();break;
     case 'var':S.goals.variedade=v;save();toast('Carrega em “Gerar plano” para aplicar');break;
@@ -787,6 +827,7 @@ document.addEventListener('change',e=>{
 document.addEventListener('input',e=>{
   const t=e.target,k=t.dataset.in;if(!k||k==='sq')return;
   if(k==='pq'){ui.pq=t.value;document.getElementById('pres').innerHTML=despensaResults()}
+  if(k==='czq'){ui.cz.q=t.value;document.getElementById('czres').innerHTML=customResults()}
   if(k==='rq'){ui.rq=t.value;document.getElementById('rres').innerHTML=receitasResults()}
   if(k==='swapq'&&ui.sheet){ui.swapQ=t.value;document.getElementById('swres').innerHTML=swapResults(ui.sheet.d,ui.sheet.i)}
 });

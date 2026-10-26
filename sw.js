@@ -1,5 +1,5 @@
 // Rede primeiro (para apanhar receitas novas), cache quando não há rede
-const CACHE='favas-742bff498e';
+const CACHE='favas-900d4c6162';
 const BASE=['./','index.html','dados.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(BASE)));self.skipWaiting()});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
