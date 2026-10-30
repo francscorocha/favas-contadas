@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,scale,search,share,shopping_basket,takeout_dining,track_changes,tune,upload,warning&display=block">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&icon_names=add,bookmark,calendar_month,check,close,coffee,content_copy,delete,dinner_dining,download,info,kitchen,lock,lock_open,lunch_dining,menu_book,nutrition,open_in_new,refresh,remove,restaurant,scale,search,share,shopping_basket,takeout_dining,track_changes,tune,upload,warning&display=block">
 <style>
 /* Layout: app Android (Material 3) — barra de topo, conteúdo numa coluna com listas agrupadas, barra de navegação em baixo, folhas que sobem do fundo */
 :root{
@@ -224,7 +224,7 @@ const LAYER2=[['ferm','Fermentado',1],['omega','Linhaça, chia ou nozes',1]];
 // ---------- Estado
 const DEFAULT={v:2,ts:0,pantry:{},custom:{},wish:[],qty:{},ok:{},goals:{kcal:2390,p:140,c:300,f:70,mode:'g',pp:23,pf:26,lanche:true,days:3,variedade:'media'},plan:null,shop:{manual:[]}};
 let S=structuredClone(DEFAULT);
-const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[],cz:{i:0,id:null,days:[],q:''}};
+const ui={tab:'plano',day:0,swapQ:'',pq:'',pf:'todos',rq:'',rf:'todas',sheet:null,cands:[],cz:{i:0,id:null,days:[],q:''},now:{i:0,sel:null},nowC:[]};
 
 function lsGet(){try{return JSON.parse(localStorage.getItem('favas-contadas')||'null')}catch(e){return null}}
 function lsSet(){try{localStorage.setItem('favas-contadas',JSON.stringify(S));return true}catch(e){return false}}
@@ -522,12 +522,12 @@ function vPlano(){
   const ings=dayIngs(d),M=macrosOf(ings),L=layersOf(ings),sugs=suggestions(d);
   let h='';
   if(!Object.values(S.pantry).some(v=>v!=='a'))h+=`<div class="hint">${ic('info')}<div class="tx"><span><b>Primeiro passo:</b> marca o que tens em casa. O plano passa a escolher receitas com o que já tens.</span><span><button class="btn fill" data-act="tab" data-v="despensa">Abrir a despensa</button></span></div></div>`;
+  h+=`<div class="btnrow"><button class="btn fill" data-act="now">${ic('restaurant')}Comer agora</button><button class="btn" data-act="custom">${ic('tune')}Personalizar</button></div>`;
   h+=`<div class="chips" role="tablist">${S.plan.days.map((x,i)=>`<button class="chip" data-act="day" data-v="${i}" aria-pressed="${i===d}">${i===d?ic('check','sm'):''}${dayLabel(i)}</button>`).join('')}</div>`;
   const bar=(v,t,col)=>`<div class="bar ${v>t*1.1?'over':''}"><i style="width:${Math.min(100,v/t*100)}%;background:${col}"></i></div>`;
   h+=`<div class="box sum"><div class="big">${Math.round(M.kcal)} <small>/ ${G.kcal} kcal</small></div>${bar(M.kcal,G.kcal,'var(--ink)')}
     <div class="mbars">${[['Proteína',M.p,G.p,'var(--accent)'],['Hidratos',M.c,G.c,'var(--mc)'],['Gordura',M.f,G.f,'var(--mf)']].map(([l,v,t,c])=>`<div class="mb"><span>${l}</span><b class="num">${Math.round(v)} <span class="muted" style="font-weight:400">/ ${t} g</span></b>${bar(v,t,c)}</div>`).join('')}</div></div>`;
   h+=`<div class="sec">Refeições</div><div class="box">${day.meals.map((m,i)=>mealRow(d,i,m)).join('')}</div>`;
-  h+=`<button class="btn wide" data-act="custom">${ic('tune')}Personalizar refeições</button>`;
   const inPlan=new Set(S.plan.days.flatMap(x=>x.meals.map(m=>m&&m.r)));
   const fora=S.wish.filter(id=>R[id]&&!inPlan.has(id));
   if(fora.length)h+=`<div class="hint">${ic('bookmark','fill')}<span>Na lista “quero fazer” mas fora do plano: <b>${fora.map(id=>esc(R[id].n)).join(', ')}</b>. Carrega em ${ic('refresh','sm')} para as encaixar.</span></div>`;
@@ -638,7 +638,7 @@ function vObjetivos(){
 function renderSheet(){
   const el=document.getElementById('sheet'),s=ui.sheet;
   if(!s){el.innerHTML='';return}
-  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):s.type==='qty'?sQty(s):s.type==='custom'?sCustom():sCooked(s);
+  const body=s.type==='meal'?sMeal(s):s.type==='recipe'?sRecipe(s):s.type==='qty'?sQty(s):s.type==='custom'?sCustom():s.type==='now'?sNow():sCooked(s);
   const keep=el.querySelector('.sheet')?.scrollTop||0;
   el.innerHTML=`<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true">${body}</div></div>`;
   if(keep)el.querySelector('.sheet').scrollTop=keep;
@@ -719,6 +719,31 @@ function customResults(){
   return (hab.length?`<div class="box">${hab.slice(0,q?40:12).map(row).join('')}</div>`:'')+(!q&&hab.length>12?`<p class="note">Mostra as 12 com mais coisas em casa. Procura para ver as outras.</p>`:'')+
     (out.length?`<div class="sec" style="margin:0 4px -4px;color:var(--muted)">Fora do habitual nesta refeição</div><div class="box">${out.slice(0,20).map(row).join('')}</div>`:'');
 }
+// comer agora: só o que dá para fazer já com o que está em casa, para a refeição desta hora
+const todayIdx=()=>{if(!S.plan)return -1;const [y,mo,da]=S.plan.start.split('-').map(Number),[y2,m2,d2]=todayISO().split('-').map(Number);
+  const n=Math.round((new Date(y2,m2-1,d2)-new Date(y,mo-1,da))/864e5);return n>=0&&n<S.plan.days.length?n:-1};
+function slotNow(){const h=new Date().getHours()+new Date().getMinutes()/60,sl=activeSlots().map(([x])=>x);
+  const s=h<11?'pa':h<15.5?'al':h<19&&sl.includes('la')?'la':h<19?'al':'ja';return sl.indexOf(s)}
+function nowCands(){
+  const i=ui.now.i,slot=activeSlots()[i][0],ti=Math.max(0,todayIdx()),seen=new Set(),ok=[],quase=[];
+  for(const c of pickFor(ti,i)){const m=toMeal(c,slot),key=mealKey(m);if(seen.has(key))continue;seen.add(key);
+    const miss=mealMiss(m),curto=mealShort(m).length;
+    if(!miss.length&&!curto&&ok.length<8)ok.push({c,m,miss});else if(miss.length+curto===1&&quase.length<4)quase.push({c,m,miss})}
+  return ui.nowC=[...ok,...quase],{ok,quase};
+}
+function sNow(){
+  const sl=activeSlots(),{ok,quase}=nowCands(),ti=todayIdx(),slot=sl[ui.now.i][0];
+  let h=sheetTop('Comer agora','Só o que dá para fazer já com o que tens em casa');
+  h+=`<div class="chips">${sl.map(([x],i)=>`<button class="chip" data-act="nowslot" data-v="${i}" aria-pressed="${i===ui.now.i}">${i===ui.now.i?ic('check','sm'):ic(SLOTICON[x],'sm')}${SLOTS[x]}</button>`).join('')}</div>`;
+  const row=(x,n)=>{const on=ui.now.sel===n,M=macrosOf(x.c.ings);
+    return `<button class="li tap ${on?'sel':''}" data-act="nowsel" data-v="${n}"><span class="tx"><span class="t1">${esc(mealName(x.m))}</span><span class="t2 num">${mtxt(M)}${x.c.kind==='r'?' · '+fmtM(x.m.m):x.m.snack?' · lanche simples':' · prato montado'}${x.miss.length?' · falta '+esc(x.miss.map(k=>shortName(k).toLowerCase()).join(', ')):(x.m.parts?'':mealShort(x.m).length?' · pode não chegar':'')}</span></span>${x.c.kind==='r'?ic('menu_book'):''}</button>`+
+      (on?`<div class="li"><div class="btnrow" style="flex:1">${x.c.kind==='r'?`<button class="btn out" data-act="recipe" data-v="${x.m.r}">${ic('menu_book')}Receita</button>`:''}${ti>=0?`<button class="btn fill" data-act="noweat" data-v="${n}">${ic('check')}Comer isto</button>`:''}</div></div>`:'')};
+  if(ok.length)h+=`<div class="sec" style="margin-top:0">Dá para fazer já</div><div class="box">${ok.map((x,n)=>row(x,n)).join('')}</div>`;
+  else h+=`<div class="hint">${ic('info')}<span>Com o que está marcado em casa não há nada completo para ${SLOTS[slot].toLowerCase()}. Vê se a despensa está atualizada.</span></div>`;
+  if(quase.length)h+=`<div class="sec" style="margin-top:0">Falta só uma coisa</div><div class="box">${quase.map((x,n)=>row(x,ok.length+n)).join('')}</div>`;
+  h+=`<p class="note">${ti>=0?'“Comer isto” põe a refeição no plano de hoje, fixada, no lugar de '+esc(mealName(S.plan.days[ti].meals[ui.now.i]))+'. Depois marca-a como feita para descontar da despensa.':'O plano não inclui hoje: gera um plano novo para poderes registar a refeição.'} A porção já vem ajustada às calorias desta refeição.</p>`;
+  return h;
+}
 function sQty({k}){
   const x=F[k],u=x&&x.u,g=planUse().use[k]||0,q=S.qty[k];
   const opts=u?[.5,1,2,3,4,6].map(n=>n*u[2]):[100,250,500,1000];
@@ -797,6 +822,11 @@ document.addEventListener('click',e=>{
       const ds=pd==='all'?S.plan.days.map((x,j)=>j):[+pd];
       for(const dd of ds)replaceMeal(dd,ii,{slot:s,r:v,m:fitMult(r,S.goals.kcal*sh),lock:true,done:false});
       save();ui.day=ds[0];toast(pd==='all'?'Fixada em todos os dias: '+SLOTS[s].toLowerCase():'Posta e fixada no plano: '+slotTxt(ds[0],ii));closeSheet();return}
+    case 'now':ensurePlan();ui.now={i:slotNow(),sel:null};openSheet({type:'now'});return;
+    case 'nowslot':ui.now={i:+v,sel:null};break;
+    case 'nowsel':ui.now.sel=ui.now.sel===+v?null:+v;break;
+    case 'noweat':{const x=ui.nowC[+v],ti=todayIdx(),i=ui.now.i;if(!x||ti<0)return;
+      replaceMeal(ti,i,{...structuredClone(x.m),lock:true});save();ui.day=ti;toast(mealName(x.m)+' posto em hoje, '+SLOTS[x.m.slot].toLowerCase());closeSheet();return}
     case 'custom':ensurePlan();ui.cz={i:Math.min(ui.cz.i,activeSlots().length-1),id:null,days:[],q:''};openSheet({type:'custom'});return;
     case 'czslot':ui.cz.i=+v;ui.cz.days=[];if(!ui.cz.id)ui.cz.q='';break;
     case 'czpick':ui.cz.id=v;break;
