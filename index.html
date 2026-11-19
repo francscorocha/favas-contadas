@@ -203,7 +203,7 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 <div id="sheet"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="dados.js?v=779dd7cc93"></script>
+<script src="dados.js?v=57542bfbb2"></script>
 <script>
 // ---------- Dados: dados.js é gerado pelo build.mjs a partir das notas do Obsidian
 const F=window.DADOS.alimentos;
@@ -447,6 +447,24 @@ function suggestions(d){
 const fmtN=x=>{const r=Math.round(x*2)/2;return String(r).replace('.',',')};
 const fmtG=g=>g>=1000?(Math.round(g/100)/10+' kg').replace('.',','):(g<10?Math.round(g):Math.round(g/5)*5)+' g';
 const fmtQ=(k,g)=>{const u=F[k]&&F[k].u;if(!u)return fmtG(g);const n=Math.round(g/u[2]*2)/2;return n<.5?fmtG(g):String(n).replace('.',',')+' '+(n<=1?u[0]:u[1])};
+// medidas caseiras, para não ter de pesar: contagens, fração da embalagem, colheres de sopa ou chávenas (sempre aproximadas)
+const CONTA={nozes:['noz','nozes',5],amendoas:['amêndoa','amêndoas',1.2],cajus:['caju','cajus',1.6],cerejas:['cereja','cerejas',8],uvas:['bago','bagos',5],
+  tomate_seco:['tomate seco','tomates secos',6],alho:['dente de alho','dentes de alho',4],azeitonas:['azeitona','azeitonas',4],castanha_brasil:['castanha','castanhas',5]};
+const PACOTE={tofu:'bloco',tofu_sedoso:'embalagem',tofu_fumado:'bloco',tempeh:'embalagem',seitan:'embalagem',grao:'lata escorrida',massa_folhada:'placa',abobora:'abóbora',baguete:'baguete'};
+const PACOTES={bloco:'blocos',embalagem:'embalagens','lata escorrida':'latas escorridas',placa:'placas','abóbora':'abóboras',baguete:'baguetes'};
+const frac=x=>{const q=x>2?Math.round(x*2)/2:Math.round(x*4)/4,i=Math.floor(q),r={0:'',.25:'¼',.5:'½',.75:'¾'}[q-i];return (i?i+(r?' ':''):'')+r||'¼'};
+function caseira(k,g){
+  const x=F[k];if(!x||x.u)return null;
+  if(CONTA[k]){const [a,b,u]=CONTA[k],n=Math.max(1,Math.round(g/u));return '~'+n+' '+(n>1?b:a)}
+  if(PACOTE[k]&&x.un&&g>=x.un*.2)return '~'+frac(g/x.un)+' '+(g/x.un>1.1?PACOTES[PACOTE[k]]:PACOTE[k]);
+  if(x.cs&&g<=x.cs*4.5){if(g<x.cs*.4){const n=Math.max(1,Math.round(g/(x.cs/3)));return '~'+n+' c. chá'}const n=Math.round(g/x.cs*2)/2;return '~'+fmtN(n)+' c. sopa'}
+  if(x.cup&&g>=x.cup*.2)return '~'+frac(g/x.cup)+' chávena'+(g/x.cup>1.1?'s':'');
+  return null;
+}
+// numa porção: "1 banana", "~4 nozes (20 g)", "~1 c. sopa (16 g)"
+const fmtP=(k,g)=>{const c=caseira(k,g);return c?c+' ('+fmtG(g)+')':fmtQ(k,g)};
+// numa linha, com o nome: "~1 c. sopa de manteiga de amendoim"
+const qtyLabel=(k,g)=>{if(F[k]&&F[k].u){const q=fmtQ(k,g),nm=shortName(k).toLowerCase();return nm.includes(F[k].u[0].toLowerCase())&&!/ k?g$/.test(q)?q:q+' de '+nm}const c=caseira(k,g),nm=shortName(k).toLowerCase();return c?(CONTA[k]||PACOTE[k]==='abóbora'||PACOTE[k]==='baguete'?c:c+' de '+nm):fmtG(g)+' de '+nm};
 const fmtM=x=>'×'+String(x).replace('.',',');
 
 // ---------- Objetivos: kcal e macros andam juntas (4 kcal/g proteína e hidratos, 9 kcal/g gordura)
@@ -551,7 +569,7 @@ function mealRow(d,i,m){
   const over=`${SLOTS[m.slot]} · ${m.sobra?'sobra de '+dayLabel(m.from[0]).toLowerCase():fmtM(m.m)}${m.lock?' · fixada':''}`;
   return `<div class="li split ${m.done?'done':''}"><button class="main tap" data-act="meal" data-d="${d}" data-i="${i}">
     <span class="av">${ic(m.sobra?'takeout_dining':SLOTICON[m.slot])}</span>
-    <span class="tx"><span class="ov">${m.lock?ic('lock','sm fill')+' ':''}${over}</span><span class="t1">${esc(name)}</span><span class="t2 num">${mtxt(M)}${miss&&!m.done?` · <span style="color:var(--warn)">falta${miss>1?'m':''} ${miss}</span>`:''}</span></span></button>
+    <span class="tx"><span class="ov">${m.lock?ic('lock','sm fill')+' ':''}${over}</span><span class="t1">${esc(name)}</span>${m.parts?`<span class="t2">${esc(m.parts.map(p=>p.t==='r'?R[p.id].n+' '+fmtM(q4(p.m*m.m)):qtyLabel(p.k,p.g*m.m)).join(' · '))}</span>`:''}<span class="t2 num">${mtxt(M)}${miss&&!m.done?` · <span style="color:var(--warn)">falta${miss>1?'m':''} ${miss}</span>`:''}</span></span></button>
     <button class="ckb" data-act="${m.done?'undone':'done'}" data-d="${d}" data-i="${i}" aria-label="${m.done?'Desmarcar':'Marcar como feito'}: ${esc(name)}"><span class="st ${m.done?'t':''}">${m.done?ic('check'):''}</span></button></div>`;
 }
 
@@ -656,7 +674,7 @@ function sMeal({d,i}){
   let h=sheetTop(esc(mealName(m)),`${SLOTS[m.slot]} · ${dayLabel(d)}${m.snack?' · lanche simples':m.parts?' · prato montado':''}`)+pills(M);
   if(m.sobra)h+=`<div class="hint">${ic('takeout_dining')}<span>Sobra do que cozinhas ${dayLabel(m.from[0]).toLowerCase()}. Não é preciso cozinhar nem comprar de novo.</span></div>`;
   if(sobras.length)h+=`<div class="hint">${ic('takeout_dining')}<span>Faz a receita inteira: o resto fica para ${esc(sobras.join(' e '))}.</span></div>`;
-  if(m.parts)h+=`<div class="box">${m.parts.map(p=>p.t==='r'?`<button class="li tap" data-act="recipe" data-v="${p.id}"><span class="tx"><span class="t1">${esc(R[p.id].n)}</span><span class="t2 num">${R[p.id].tipo.map(t=>TIPO[t]).join(', ')} · ${fmtM(q4(p.m*m.m))} porção</span></span>${ic('menu_book')}</button>`:`<div class="li">${stDot(p.k)}<span class="tx"><span class="t1">${esc(F[p.k].n)}</span><span class="t2">${(F[p.k].comp?TIPO[F[p.k].comp]:'')}</span></span><span class="t2 num">${fmtQ(p.k,p.g*m.m)}</span></div>`).join('')}</div>`;
+  if(m.parts)h+=`<div class="box">${m.parts.map(p=>p.t==='r'?`<button class="li tap" data-act="recipe" data-v="${p.id}"><span class="tx"><span class="t1">${esc(R[p.id].n)}</span><span class="t2 num">${R[p.id].tipo.map(t=>TIPO[t]).join(', ')} · ${fmtM(q4(p.m*m.m))} porção</span></span>${ic('menu_book')}</button>`:`<div class="li">${stDot(p.k)}<span class="tx"><span class="t1">${esc(F[p.k].n)}</span><span class="t2">${(F[p.k].comp?TIPO[F[p.k].comp]:'')}</span></span><span class="t2 num">${fmtP(p.k,p.g*m.m)}</span></div>`).join('')}</div>`;
   h+=`<div class="li" style="padding:0"><span class="t1" style="flex:1">Porção</span><span class="stepper"><button data-act="m-" data-d="${d}" data-i="${i}" aria-label="Menos">${ic('remove')}</button><span>${fmtM(m.m)}</span><button data-act="m+" data-d="${d}" data-i="${i}" aria-label="Mais">${ic('add')}</button></span></div>
   ${miss.length?`<div class="warn">${ic('warning')}<span>Falta: ${esc(miss.join(', '))}</span></div>`:''}
   ${curto.length?`<div class="warn">${ic('warning')}<span>Não chega: ${curto.map(([k,g])=>esc(shortName(k).toLowerCase())+' (tens ~'+fmtQ(k,S.qty[k])+', precisa de '+fmtQ(k,g)+')').join(', ')}</span></div>`:''}
@@ -688,7 +706,7 @@ function sRecipe({id}){
   (r.slots.length?`<button class="btn ${wish?'':'out'}" style="align-self:flex-start" data-act="wish" data-v="${id}" aria-pressed="${wish}">${ic('bookmark',wish?'fill':'')}${wish?'Na lista “quero fazer”':'Quero fazer'}</button>`:'')+
   `${r.tipo?`<p class="note">Entra nos pratos montados do plano como ${r.tipo.map(t=>TIPO[t]).join(' e ')}.</p>`:''}
   <div class="sec" style="margin-top:0">Ingredientes por porção</div>
-  <div class="box">${r.ing.map(([k,g])=>`<div class="li" style="min-height:48px">${stDot(k,'sm')}<span class="t1" style="flex:1">${esc(F[k].n)}</span><span class="t2 num">${fmtQ(k,g/r.sv)}</span></div>`).join('')}</div>
+  <div class="box">${r.ing.map(([k,g])=>`<div class="li" style="min-height:48px">${stDot(k,'sm')}<span class="t1" style="flex:1">${esc(F[k].n)}</span><span class="t2 num">${fmtP(k,g/r.sv)}</span></div>`).join('')}</div>
   <p class="note">${r.est?'Esta nota não tem a propriedade despensa: as quantidades foram tiradas da lista de ingredientes e podem falhar.':'Quantidades da propriedade despensa da nota.'} Sal, especiarias e água não contam.</p>
   ${slots.length&&days?`<div class="sec" style="margin-top:0">Pôr no plano (fica fixada)</div><div class="fields"><label class="field"><span>Dia</span><select id="pd">${days}</select></label><label class="field"><span>Refeição</span><select id="ps">${slots.map(({s,i,ok})=>`<option value="${i}">${SLOTS[s]}${ok?'':' (fora do habitual)'}</option>`).join('')}</select></label></div><button class="btn fill wide" data-act="toplan" data-v="${r.id}">${ic('add')}Pôr no plano</button>`:''}
   <a class="btn text" href="${url}" style="align-self:flex-start;text-decoration:none">${ic('open_in_new')}Abrir a nota no Obsidian</a>`;
