@@ -58,7 +58,7 @@ button,label{cursor:pointer;-webkit-user-select:none;user-select:none}
 .appbar .sub{font-size:13px;color:var(--muted)}
 .ibtn{width:48px;height:48px;border:0;background:none;border-radius:50%;display:grid;place-items:center;flex:none}
 
-main{max-width:640px;margin:0 auto;padding-block:4px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+main{max-width:640px;margin:0 auto;padding-block:8px 32px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
 
 /* barra de navegação */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--c2);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
@@ -71,11 +71,13 @@ nav.tabs [aria-current]{color:var(--ink);font-weight:700}
 nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;border-radius:8px;background:var(--bad);color:var(--on-bad);font-size:11px;font-weight:700;line-height:16px;padding:0 4px;text-align:center}
 
 /* listas agrupadas */
-.sec{font-size:14px;font-weight:600;color:var(--accent);margin:10px 4px -4px}
+.sec{font-size:14px;font-weight:600;letter-spacing:.01em;color:var(--accent);margin:8px 4px -8px}
 .box{background:var(--c1);border-radius:20px;overflow:hidden}
 .box.pad{padding:16px;display:flex;flex-direction:column;gap:12px}
 .li{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px 16px;width:100%;border:0;background:none;text-align:left}
 .li+.li{box-shadow:inset 0 1px var(--line)}
+.li.stack{flex-direction:column;align-items:stretch;gap:10px;padding:14px 16px}
+.li.stack .segb{width:100%}.li.stack .segb button{flex:1}
 .li.split{padding:0 8px 0 0;gap:4px}
 .li .main{display:flex;align-items:center;gap:16px;flex:1;min-width:0;min-height:56px;padding:10px 8px 10px 16px;border:0;background:none;text-align:left;border-radius:0}
 .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
@@ -107,7 +109,7 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 .li.sel{background:var(--accent-soft);color:var(--on-accent-soft)}
 .li.sel .t2{color:inherit}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
-.btnrow .btn{flex:1}
+.btnrow .btn{flex:1;padding:0 12px;min-width:0}
 
 /* pesquisa e campos */
 .search{display:flex;align-items:center;gap:12px;height:56px;border-radius:28px;background:var(--c2);padding:0 4px 0 16px;flex:none}
@@ -133,8 +135,8 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 .mb b{font-size:15px;color:var(--ink);font-weight:600}
 
 /* 3 camadas */
-.layers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px}
-.lay{display:flex;justify-content:space-between;gap:8px;font-size:14px;align-items:center;min-width:0}
+.layers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+.lay{display:flex;flex-direction:column;gap:6px;font-size:14px;line-height:1.3;min-width:0}
 .dots{display:flex;gap:4px;flex:none}
 .dots i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ok)}
 .dots i.f{background:var(--ok)}
@@ -150,10 +152,10 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 .ckb .st{width:28px;height:28px}
 
 /* caixa de aviso */
-.hint{background:var(--accent-soft);color:var(--on-accent-soft);border-radius:16px;padding:16px;display:flex;gap:12px;align-items:flex-start;font-size:14px}
+.hint{background:var(--accent-soft);color:var(--on-accent-soft);border-radius:20px;padding:16px;line-height:1.45;display:flex;gap:12px;align-items:flex-start;font-size:14px}
 .hint .tx{gap:10px}
 .warn{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:12px 14px;font-size:14px;display:flex;gap:10px}
-.note{font-size:13px;color:var(--muted);margin:0 4px}
+.note{font-size:13px;line-height:1.5;color:var(--muted);margin:0 4px}
 
 /* folha inferior */
 .scrim{position:fixed;inset:0;background:rgb(0 0 0 / .32);z-index:20;display:flex;align-items:flex-end;justify-content:center}
@@ -165,6 +167,8 @@ nav.tabs .badge{position:absolute;top:-2px;left:32px;min-width:16px;height:16px;
 .sheet h2{font:700 22px/1.2 var(--display);margin:0;text-wrap:balance}
 .sheet .box{background:var(--bg)}
 .pills{display:flex;gap:8px;flex-wrap:wrap}
+.pills.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.pills.g4 .pill{justify-content:center;padding:0 4px;font-size:13px;white-space:nowrap}
+.pills.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.pills.g2 .chip{justify-content:center;min-width:0}
 .pill{height:32px;border-radius:8px;background:var(--c2);padding:0 12px;display:inline-flex;align-items:center;font-size:14px;font-variant-numeric:tabular-nums}
 .stepper{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:24px;height:48px}
 .stepper button{width:48px;height:46px;border:0;background:none;border-radius:24px;display:grid;place-items:center}
@@ -273,8 +277,8 @@ function layersOf(ings){
 function macrosOf(ings){const a=Z();for(const {k,g} of ings)addFood(a,k,g);return a}
 function dayIngs(d){const day=S.plan.days[d];return day.meals.flatMap(mealIngs).concat(day.extras.map(e=>({k:e.k,g:e.g})))}
 // tamanho das refeições: perfis prontos ou percentagens à mão; sem lanche, a parte dele reparte-se pelas outras
-const SPLITS={equil:['Equilibrado',{pa:25,al:35,la:12,ja:28}],grandes:['Almoço e jantar grandes',{pa:15,al:40,la:10,ja:35}],
-  manha:['Pequeno-almoço grande',{pa:35,al:35,la:10,ja:20}],custom:['Personalizado',null]};
+const SPLITS={equil:['Equilibrado',{pa:25,al:35,la:12,ja:28}],grandes:['Almoço e jantar',{pa:15,al:40,la:10,ja:35}],
+  manha:['Manhã forte',{pa:35,al:35,la:10,ja:20}],custom:['Personalizado',null]};
 const splitPct=()=>{const G=S.goals;return G.split==='custom'?G.splitC:(SPLITS[G.split]||SPLITS.equil)[1]};
 function activeSlots(){
   const G=S.goals;if((G.split||'equil')==='equil'&&!G.lanche)return [['pa',.28],['al',.38],['ja',.34]];
@@ -639,8 +643,8 @@ function receitasResults(){
 
 function vSplit(){
   const G=S.goals,cur=G.split||'equil',sl=activeSlots(),soma=sl.reduce((a,[x])=>a+(+G.splitC[x]||0),0);
-  return `<div class="li" style="flex-direction:column;align-items:stretch;gap:10px;padding-top:12px;padding-bottom:12px"><span class="tx"><span class="t1">Tamanho das refeições</span><span class="t2">${sl.map(([x,sh])=>SLOTS[x]+' '+Math.round(sh*100)+'%').join(' · ')}</span></span>
-  <div class="pills">${Object.entries(SPLITS).map(([k,[l]])=>`<button class="chip" data-act="split" data-v="${k}" aria-pressed="${cur===k}">${cur===k?ic('check','sm'):''}${l}</button>`).join('')}</div>
+  return `<div class="li stack"><span class="tx"><span class="t1">Tamanho das refeições</span><span class="t2">${sl.map(([x,sh])=>SLOTS[x]+' '+Math.round(sh*100)+'%').join(' · ')}</span></span>
+  <div class="pills g2">${Object.entries(SPLITS).map(([k,[l]])=>`<button class="chip" data-act="split" data-v="${k}" aria-pressed="${cur===k}">${cur===k?ic('check','sm'):''}${l}</button>`).join('')}</div>
   ${cur==='custom'?`<div class="fields">${sl.map(([x])=>`<label class="field"><span>${SLOTS[x]} (%)</span><input type="number" inputmode="numeric" data-split="${x}" value="${G.splitC[x]}"></label>`).join('')}</div>
   <span class="t2">${soma===100?'Somam 100%.':'Somam '+soma+'%: a app ajusta na proporção para dar 100%.'}</span>`:''}</div>`;
 }
@@ -656,8 +660,8 @@ function vObjetivos(){
   <div class="li" style="padding:0;min-height:0"><span class="t1" style="flex:1">Definir por</span><span class="segb" role="group" aria-label="Definir objetivos por"><button data-act="gmode" data-v="g" aria-pressed="${!pct}">Gramas</button><button data-act="gmode" data-v="pct" aria-pressed="${pct}">%</button></span></div>
   <div class="fields">${fields}</div><span class="t2">${resumo}${S.ts===0?' Os valores de partida são um exemplo.':''}</span></div>
   <div class="sec">Plano</div><div class="box">
-  <div class="li"><span class="t1" style="flex:1">Dias a planear</span><span class="segb" role="group" aria-label="Dias a planear">${[1,3,5,7].map(n=>`<button data-act="days" data-v="${n}" aria-pressed="${G.days===n}">${n}</button>`).join('')}</span></div>
-  <div class="li"><span class="tx"><span class="t1">Variedade</span><span class="t2">${{pouca:'Repete as mesmas refeições e usa mais sobras',media:'Equilíbrio entre variar e repetir',muita:'Quase sempre refeições diferentes, poucas sobras'}[G.variedade||'media']}</span></span><span class="segb" role="group" aria-label="Variedade">${[['pouca','Pouca'],['media','Média'],['muita','Muita']].map(([v,l])=>`<button data-act="var" data-v="${v}" aria-pressed="${(G.variedade||'media')===v}">${l}</button>`).join('')}</span></div>
+  <div class="li stack"><span class="t1">Dias a planear</span><span class="segb" role="group" aria-label="Dias a planear">${[1,3,5,7].map(n=>`<button data-act="days" data-v="${n}" aria-pressed="${G.days===n}">${n}</button>`).join('')}</span></div>
+  <div class="li stack"><span class="tx"><span class="t1">Variedade</span><span class="t2">${{pouca:'Repete as mesmas refeições e usa mais sobras',media:'Equilíbrio entre variar e repetir',muita:'Quase sempre refeições diferentes, poucas sobras'}[G.variedade||'media']}</span></span><span class="segb" role="group" aria-label="Variedade">${[['pouca','Pouca'],['media','Média'],['muita','Muita']].map(([v,l])=>`<button data-act="var" data-v="${v}" aria-pressed="${(G.variedade||'media')===v}">${l}</button>`).join('')}</span></div>
   ${vSplit()}
   <div class="li"><span class="t1" style="flex:1">Incluir lanche</span><button class="sw" role="switch" aria-checked="${G.lanche}" aria-label="Incluir lanche" data-act="lanche" data-v="${G.lanche?0:1}"></button></div>
   <div class="li"><button class="btn fill wide" data-act="regen">${ic('refresh')}Gerar plano com estes objetivos</button></div></div>
@@ -665,7 +669,7 @@ function vObjetivos(){
   <button class="li tap" data-act="exportar">${ic('download')}<span class="tx"><span class="t1">Exportar cópia</span><span class="t2">Guarda um ficheiro com a despensa e o plano</span></span></button>
   <label class="li tap" for="importar">${ic('upload')}<span class="tx"><span class="t1">Importar cópia</span><span class="t2">Repõe a partir de um ficheiro exportado</span></span></label><input type="file" id="importar" accept="application/json,.json" hidden></div>
   <p class="note">Os dados ficam só neste telemóvel. ${Object.values(R).filter(r=>r.slots.length).length} receitas e ${Object.values(R).filter(r=>r.tipo).length} componentes do Obsidian, atualizados a ${window.DADOS.atualizado.split('-').reverse().join('/')}.</p>
-  <div class="sec">Como escolhe</div><div class="box pad"><span class="t2">Para cada refeição compara receitas e pratos montados (proteína + base + legumes). Dá prioridade ao que tens em casa e às receitas da lista “quero fazer”, ajusta a porção às calorias e macros (repartidas pelas refeições conforme o tamanho que escolheste), e prefere o que preenche as porções das 3 camadas que ainda faltam no dia. Receitas de várias porções ficam como sobras para os dias seguintes. Enquanto o plano não chega à meta de plantas diferentes, as receitas com plantas novas ganham vantagem (ervas contam ¼; óleos, açúcar e produtos processados não contam). Castanha-do-brasil, algas e suplementos ficam de fora.</span></div>`;
+  <div class="sec">Como escolhe</div><div class="box pad"><span class="t2" style="line-height:1.55">Para cada refeição compara receitas e pratos montados (proteína + base + legumes). Dá prioridade ao que tens em casa e às receitas da lista “quero fazer”, ajusta a porção às calorias e macros (repartidas pelas refeições conforme o tamanho que escolheste), e prefere o que preenche as porções das 3 camadas que ainda faltam no dia. Receitas de várias porções ficam como sobras para os dias seguintes. Enquanto o plano não chega à meta de plantas diferentes, as receitas com plantas novas ganham vantagem (ervas contam ¼; óleos, açúcar e produtos processados não contam). Castanha-do-brasil, algas e suplementos ficam de fora.</span></div>`;
 }
 
 // ---------- Folhas inferiores
@@ -678,7 +682,7 @@ function renderSheet(){
   if(keep)el.querySelector('.sheet').scrollTop=keep;
 }
 const sheetTop=(title,over)=>`<div class="top"><div class="handle"></div>${over?`<span class="ov">${over}</span>`:''}<h2>${title}</h2></div>`;
-const pills=M=>`<div class="pills">${[[M.kcal,'kcal'],[M.p,'g prot.'],[M.c,'g hidr.'],[M.f,'g gord.']].map(([v,u])=>`<span class="pill">${Math.round(v)} ${u}</span>`).join('')}</div>`;
+const pills=M=>`<div class="pills g4">${[[M.kcal,'kcal'],[M.p,'g prot.'],[M.c,'g hidr.'],[M.f,'g gord.']].map(([v,u])=>`<span class="pill">${Math.round(v)} ${u}</span>`).join('')}</div>`;
 function sMeal({d,i}){
   const m=S.plan.days[d].meals[i],ings=mealIngs(m),M=macrosOf(ings),L=layersOf(ings);
   const miss=mealMiss(m).map(k=>F[k].n),curto=mealShort(m);
